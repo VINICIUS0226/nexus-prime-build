@@ -9,14 +9,16 @@ import {
   DollarSign, 
   BarChart3,
   LogOut,
-  ShoppingBag,
+  Box,
   Settings
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Produtos', href: '/dashboard/products', icon: Package },
   { name: 'Clientes', href: '/dashboard/customers', icon: Users },
+  { name: 'Estoque', href: '/dashboard/stock', icon: Box },
   { name: 'Reservas', href: '/dashboard/reservations', icon: ShoppingCart },
   { name: 'Vendas', href: '/dashboard/sales', icon: DollarSign },
   { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3 },
@@ -33,17 +35,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       <aside className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border">
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-border">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <ShoppingBag className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                  PQUENINOS
-                </h1>
-                <p className="text-xs text-muted-foreground">Gestão de Vendas</p>
-              </div>
+          <div className="p-4 border-b border-border">
+            <Link to="/dashboard">
+              <img src={logo} alt="PQueninos - Moda Infantil e Juvenil" className="w-full h-auto" />
             </Link>
           </div>
 

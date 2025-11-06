@@ -40,6 +40,14 @@ const Products = () => {
     image_url: '',
   });
 
+  const [variationData, setVariationData] = useState({
+    sku: '',
+    size: '',
+    color: '',
+    stock_quantity: '',
+    min_stock_level: '5',
+  });
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -67,23 +75,51 @@ const Products = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      const { error } = await supabase.from('products').insert([{
-        name: formData.name,
-        description: formData.description || null,
-        category: formData.category || null,
-        barcode: formData.barcode || null,
-        cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
-        selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
-        profit_margin: formData.profit_margin ? parseFloat(formData.profit_margin) : null,
-        image_url: formData.image_url || null,
-      }]);
+    if (!variationData.sku) {
+      toast({
+        title: "SKU obrigatório",
+        description: "Por favor, informe o código SKU da variação",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (error) throw error;
+    try {
+      // Inserir produto
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .insert([{
+          name: formData.name,
+          description: formData.description || null,
+          category: formData.category || null,
+          barcode: formData.barcode || null,
+          cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
+          selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
+          profit_margin: formData.profit_margin ? parseFloat(formData.profit_margin) : null,
+          image_url: formData.image_url || null,
+        }])
+        .select()
+        .single();
+
+      if (productError) throw productError;
+
+      // Inserir variação
+      const { error: variationError } = await supabase
+        .from('product_variations')
+        .insert([{
+          product_id: productData.id,
+          sku: variationData.sku,
+          size: variationData.size || null,
+          color: variationData.color || null,
+          stock_quantity: variationData.stock_quantity ? parseInt(variationData.stock_quantity) : 0,
+          min_stock_level: variationData.min_stock_level ? parseInt(variationData.min_stock_level) : 5,
+        }]);
+
+      if (variationError) throw variationError;
 
       toast({
         title: "Produto cadastrado!",
-        description: "O produto foi adicionado com sucesso.",
+        description: "O produto e sua variação foram adicionados com sucesso.",
       });
 
       setDialogOpen(false);
@@ -131,6 +167,13 @@ const Products = () => {
       selling_price: '',
       profit_margin: '',
       image_url: '',
+    });
+    setVariationData({
+      sku: '',
+      size: '',
+      color: '',
+      stock_quantity: '',
+      min_stock_level: '5',
     });
   };
 
@@ -237,6 +280,61 @@ const Products = () => {
                       value={formData.profit_margin}
                       onChange={(e) => setFormData({ ...formData, profit_margin: e.target.value })}
                     />
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-4">Variação de Produto</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sku">Código SKU *</Label>
+                      <Input
+                        id="sku"
+                        value={variationData.sku}
+                        onChange={(e) => setVariationData({ ...variationData, sku: e.target.value })}
+                        required
+                        placeholder="Ex: PQVEN-001-P-AZUL"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stock_quantity">Quantidade em Estoque</Label>
+                      <Input
+                        id="stock_quantity"
+                        type="number"
+                        value={variationData.stock_quantity}
+                        onChange={(e) => setVariationData({ ...variationData, stock_quantity: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="size">Tamanho</Label>
+                      <Input
+                        id="size"
+                        value={variationData.size}
+                        onChange={(e) => setVariationData({ ...variationData, size: e.target.value })}
+                        placeholder="Ex: P, M, G"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Cor</Label>
+                      <Input
+                        id="color"
+                        value={variationData.color}
+                        onChange={(e) => setVariationData({ ...variationData, color: e.target.value })}
+                        placeholder="Ex: Azul, Vermelho"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="min_stock_level">Estoque Mínimo</Label>
+                      <Input
+                        id="min_stock_level"
+                        type="number"
+                        value={variationData.min_stock_level}
+                        onChange={(e) => setVariationData({ ...variationData, min_stock_level: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
