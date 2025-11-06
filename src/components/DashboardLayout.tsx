@@ -10,19 +10,41 @@ import {
   BarChart3,
   LogOut,
   Box,
-  Settings
+  Settings,
+  CreditCard
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Produtos', href: '/dashboard/products', icon: Package },
-  { name: 'Clientes', href: '/dashboard/customers', icon: Users },
-  { name: 'Estoque', href: '/dashboard/stock', icon: Box },
-  { name: 'Reservas', href: '/dashboard/reservations', icon: ShoppingCart },
-  { name: 'Vendas', href: '/dashboard/sales', icon: DollarSign },
-  { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
+const navigationSections = [
+  {
+    title: 'PRINCIPAL',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ]
+  },
+  {
+    title: 'GESTÃO',
+    items: [
+      { name: 'Produtos', href: '/dashboard/products', icon: Package },
+      { name: 'Clientes', href: '/dashboard/customers', icon: Users },
+      { name: 'Estoque', href: '/dashboard/stock', icon: Box },
+      { name: 'Reservas', href: '/dashboard/reservations', icon: ShoppingCart },
+    ]
+  },
+  {
+    title: 'FINANCEIRO',
+    items: [
+      { name: 'Vendas', href: '/dashboard/sales', icon: DollarSign },
+      { name: 'Pagamentos', href: '/dashboard/payments', icon: CreditCard },
+      { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3 },
+    ]
+  },
+  {
+    title: 'SISTEMA',
+    items: [
+      { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
+    ]
+  }
 ];
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
@@ -42,24 +64,33 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    isActive
-                      ? 'bg-gradient-primary text-white shadow-glow'
-                      : 'text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="font-medium">{item.name}</span>
-                </Link>
-              );
-            })}
+          <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+            {navigationSections.map((section) => (
+              <div key={section.title}>
+                <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {section.title}
+                </h3>
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                          isActive
+                            ? 'bg-gradient-primary text-white shadow-glow'
+                            : 'text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           {/* User section */}
