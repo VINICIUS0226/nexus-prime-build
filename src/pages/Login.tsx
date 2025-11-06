@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShoppingBag } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import logo from '@/assets/logo.png';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -72,15 +73,11 @@ const Login = () => {
       <Card className="w-full max-w-md shadow-elegant">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center">
-              <ShoppingBag className="h-8 w-8 text-white" />
-            </div>
+            <img src={logo} alt="PQueninos" className="w-48 h-auto" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            PQUENINOS
-          </CardTitle>
+          <CardTitle className="text-2xl">Entrar no Sistema</CardTitle>
           <CardDescription>
-            Sistema de Gerenciamento de Vendas
+            Entre com suas credenciais
           </CardDescription>
         </CardHeader>
         <CardContent>
