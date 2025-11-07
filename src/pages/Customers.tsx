@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Users as UsersIcon } from 'lucide-react';
+import { Plus, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -31,6 +33,8 @@ const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [sortBy, setSortBy] = useState('name');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -98,34 +102,62 @@ const Customers = () => {
     e.preventDefault();
     
     try {
-      const { error } = await supabase.from('customers').insert([{
-        full_name: formData.full_name,
-        email: formData.email || null,
-        phone: formData.phone,
-        cpf: formData.cpf || null,
-        cep: formData.cep || null,
-        street: formData.street || null,
-        number: formData.number || null,
-        complement: formData.complement || null,
-        neighborhood: formData.neighborhood || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        data_consent: formData.data_consent,
-      }]);
+      if (editingCustomer) {
+        const { error } = await supabase
+          .from('customers')
+          .update({
+            full_name: formData.full_name,
+            email: formData.email || null,
+            phone: formData.phone,
+            cpf: formData.cpf || null,
+            cep: formData.cep || null,
+            street: formData.street || null,
+            number: formData.number || null,
+            complement: formData.complement || null,
+            neighborhood: formData.neighborhood || null,
+            city: formData.city || null,
+            state: formData.state || null,
+            data_consent: formData.data_consent,
+          })
+          .eq('id', editingCustomer.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Cliente cadastrado!",
-        description: "O cliente foi adicionado com sucesso.",
-      });
+        toast({
+          title: "Cliente atualizado!",
+          description: "As informações foram atualizadas com sucesso.",
+        });
+      } else {
+        const { error } = await supabase.from('customers').insert([{
+          full_name: formData.full_name,
+          email: formData.email || null,
+          phone: formData.phone,
+          cpf: formData.cpf || null,
+          cep: formData.cep || null,
+          street: formData.street || null,
+          number: formData.number || null,
+          complement: formData.complement || null,
+          neighborhood: formData.neighborhood || null,
+          city: formData.city || null,
+          state: formData.state || null,
+          data_consent: formData.data_consent,
+        }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Cliente cadastrado!",
+          description: "O cliente foi adicionado com sucesso.",
+        });
+      }
 
       setDialogOpen(false);
+      setEditingCustomer(null);
       resetForm();
       fetchCustomers();
     } catch (error: any) {
       toast({
-        title: "Erro ao cadastrar cliente",
+        title: editingCustomer ? "Erro ao atualizar cliente" : "Erro ao cadastrar cliente",
         description: error.message,
         variant: "destructive",
       });
@@ -155,6 +187,25 @@ const Customers = () => {
     }
   };
 
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      full_name: customer.full_name,
+      email: customer.email || '',
+      phone: customer.phone,
+      cpf: customer.cpf || '',
+      cep: customer.cep || '',
+      street: customer.street || '',
+      number: customer.number || '',
+      complement: customer.complement || '',
+      neighborhood: customer.neighborhood || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      data_consent: customer.data_consent,
+    });
+    setDialogOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       full_name: '',
@@ -170,6 +221,7 @@ const Customers = () => {
       state: '',
       data_consent: false,
     });
+    setEditingCustomer(null);
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -179,24 +231,66 @@ const Customers = () => {
     customer.cpf?.includes(searchTerm)
   );
 
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.full_name.localeCompare(b.full_name);
+    }
+    return 0;
+  });
+
+  const activeCustomers = customers.filter(c => c.data_consent).length;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Cards de Estatísticas */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Card className="bg-[#00B8D4] text-white">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90">Usuários ativos</div>
+              <div className="text-3xl font-bold mt-1">{customers.length}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#00B8D4] text-white">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90">Vendedores</div>
+              <div className="text-3xl font-bold mt-1">0</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#00B8D4] text-white">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90">Clientes</div>
+              <div className="text-3xl font-bold mt-1">{customers.length}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#00B8D4] text-white">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90">Clientes ativos</div>
+              <div className="text-3xl font-bold mt-1">{activeCustomers}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#00B8D4] text-white">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90">Administradores</div>
+              <div className="text-3xl font-bold mt-1">1</div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Clientes</h1>
-            <p className="text-muted-foreground">Gerencie seus clientes</p>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90">
+              <Button variant="ghost" className="text-foreground hover:bg-accent">
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Cliente
+                Cadastrar usuário
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -330,80 +424,99 @@ const Customers = () => {
                 </div>
 
                 <div className="flex gap-2 justify-end pt-2">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setDialogOpen(false);
+                    resetForm();
+                  }}>
                     Cancelar
                   </Button>
                   <Button type="submit" className="bg-gradient-primary hover:opacity-90">
-                    Cadastrar
+                    {editingCustomer ? 'Atualizar' : 'Cadastrar'}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
+
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Nome</SelectItem>
+              <SelectItem value="recent">Mais recente</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar clientes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCustomers.map((customer) => (
-            <Card key={customer.id} className="hover:shadow-elegant transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="h-12 w-12 rounded-full bg-gradient-accent flex items-center justify-center">
-                    <span className="text-lg font-bold text-white">
-                      {customer.full_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  {customer.data_consent && (
-                    <span className="text-xs bg-success/10 text-success px-2 py-1 rounded">
-                      LGPD OK
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-bold mb-2">{customer.full_name}</h3>
-                <div className="space-y-1 text-sm text-muted-foreground mb-4">
-                  <p>📞 {customer.phone}</p>
-                  {customer.email && <p>📧 {customer.email}</p>}
-                  {customer.city && <p>📍 {customer.city}, {customer.state}</p>}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(customer.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredCustomers.length === 0 && !loading && (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <UsersIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum cliente encontrado</h3>
-              <p className="text-muted-foreground">
-                {searchTerm ? 'Tente buscar com outros termos' : 'Comece cadastrando seu primeiro cliente'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Tabela de Clientes */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Perfil</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Carregando...
+                    </TableCell>
+                  </TableRow>
+                ) : sortedCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nenhum cliente encontrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                      <TableCell className="font-medium">{customer.full_name}</TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">Cliente</span>
+                      </TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>
+                        <span className={`text-sm ${customer.data_consent ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {customer.data_consent ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => handleEdit(customer)}
+                            className="bg-[#4A90E2] hover:bg-[#357ABD] text-white"
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleDelete(customer.id)}
+                            className="bg-[#E25C5C] hover:bg-[#C94545] text-white"
+                          >
+                            Excluir
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
