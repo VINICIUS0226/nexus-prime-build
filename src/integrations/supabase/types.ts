@@ -17,43 +17,58 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          cep: string | null
           city: string | null
+          complement: string | null
           cpf: string | null
           created_at: string
           data_consent: boolean
           email: string | null
           full_name: string
           id: string
+          neighborhood: string | null
+          number: string | null
           phone: string
           state: string | null
+          street: string | null
           updated_at: string
           zip_code: string | null
         }
         Insert: {
           address?: string | null
+          cep?: string | null
           city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string
           data_consent?: boolean
           email?: string | null
           full_name: string
           id?: string
+          neighborhood?: string | null
+          number?: string | null
           phone: string
           state?: string | null
+          street?: string | null
           updated_at?: string
           zip_code?: string | null
         }
         Update: {
           address?: string | null
+          cep?: string | null
           city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string
           data_consent?: boolean
           email?: string | null
           full_name?: string
           id?: string
+          neighborhood?: string | null
+          number?: string | null
           phone?: string
           state?: string | null
+          street?: string | null
           updated_at?: string
           zip_code?: string | null
         }

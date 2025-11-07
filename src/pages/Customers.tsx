@@ -16,10 +16,13 @@ interface Customer {
   email: string | null;
   phone: string;
   cpf: string | null;
-  address: string | null;
+  cep: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
   city: string | null;
   state: string | null;
-  zip_code: string | null;
   data_consent: boolean;
 }
 
@@ -35,12 +38,37 @@ const Customers = () => {
     email: '',
     phone: '',
     cpf: '',
-    address: '',
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
     city: '',
     state: '',
-    zip_code: '',
     data_consent: false,
   });
+
+  const fetchAddressByCep = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          state: data.uf || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
 
   useEffect(() => {
     fetchCustomers();
@@ -75,10 +103,13 @@ const Customers = () => {
         email: formData.email || null,
         phone: formData.phone,
         cpf: formData.cpf || null,
-        address: formData.address || null,
+        cep: formData.cep || null,
+        street: formData.street || null,
+        number: formData.number || null,
+        complement: formData.complement || null,
+        neighborhood: formData.neighborhood || null,
         city: formData.city || null,
         state: formData.state || null,
-        zip_code: formData.zip_code || null,
         data_consent: formData.data_consent,
       }]);
 
@@ -130,10 +161,13 @@ const Customers = () => {
       email: '',
       phone: '',
       cpf: '',
-      address: '',
+      cep: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
       city: '',
       state: '',
-      zip_code: '',
       data_consent: false,
     });
   };
@@ -176,6 +210,18 @@ const Customers = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label htmlFor="phone">Telefone *</Label>
                     <Input
                       id="phone"
@@ -183,17 +229,6 @@ const Customers = () => {
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       required
                       placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -206,15 +241,61 @@ const Customers = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </div>
+
                 <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cep">CEP</Label>
+                    <Input
+                      id="cep"
+                      value={formData.cep}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, cep: value });
+                        if (value.replace(/\D/g, '').length === 8) {
+                          fetchAddressByCep(value);
+                        }
+                      }}
+                      placeholder="00000-000"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="street">Endereço</Label>
+                    <Input
+                      id="street"
+                      value={formData.street}
+                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="number">Número</Label>
+                    <Input
+                      id="number"
+                      value={formData.number}
+                      onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-3">
+                    <Label htmlFor="complement">Complemento</Label>
+                    <Input
+                      id="complement"
+                      value={formData.complement}
+                      onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="neighborhood">Bairro</Label>
+                    <Input
+                      id="neighborhood"
+                      value={formData.neighborhood}
+                      onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="city">Cidade</Label>
                     <Input
@@ -233,17 +314,9 @@ const Customers = () => {
                       placeholder="UF"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zip_code">CEP</Label>
-                    <Input
-                      id="zip_code"
-                      value={formData.zip_code}
-                      onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                      placeholder="00000-000"
-                    />
-                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
+
+                <div className="flex items-center space-x-2 pt-2">
                   <Checkbox
                     id="data_consent"
                     checked={formData.data_consent}
@@ -255,7 +328,8 @@ const Customers = () => {
                     Cliente consente com o uso de seus dados pessoais (LGPD)
                   </Label>
                 </div>
-                <div className="flex gap-2 justify-end">
+
+                <div className="flex gap-2 justify-end pt-2">
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
