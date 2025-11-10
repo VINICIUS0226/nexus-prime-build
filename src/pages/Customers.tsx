@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronDown, Edit, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, Edit, Trash2, Eye, UserCheck, UserX } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -245,31 +245,31 @@ const Customers = () => {
       <div className="space-y-6">
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="bg-[#00B8D4] text-white">
+          <Card className="bg-gradient-primary text-white border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Usuários ativos</div>
               <div className="text-3xl font-bold mt-1">{customers.length}</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#00B8D4] text-white">
+          <Card className="bg-secondary text-secondary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Vendedores</div>
               <div className="text-3xl font-bold mt-1">0</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#00B8D4] text-white">
+          <Card className="bg-gradient-accent text-white border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Clientes</div>
               <div className="text-3xl font-bold mt-1">{customers.length}</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#00B8D4] text-white">
+          <Card className="bg-success text-success-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Clientes ativos</div>
               <div className="text-3xl font-bold mt-1">{activeCustomers}</div>
             </CardContent>
           </Card>
-          <Card className="bg-[#00B8D4] text-white">
+          <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Administradores</div>
               <div className="text-3xl font-bold mt-1">1</div>
@@ -283,8 +283,8 @@ const Customers = () => {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button variant="ghost" className="text-foreground hover:bg-accent">
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="bg-gradient-primary text-white hover:opacity-90 shadow-elegant">
+                <Plus className="mr-2 h-5 w-5" />
                 Cadastrar usuário
               </Button>
             </DialogTrigger>
@@ -450,17 +450,17 @@ const Customers = () => {
         </div>
 
         {/* Tabela de Clientes */}
-        <Card>
+        <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[50px]"></TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                <TableRow className="bg-gradient-primary">
+                  <TableHead className="w-[50px] text-white"></TableHead>
+                  <TableHead className="text-white font-semibold">Nome</TableHead>
+                  <TableHead className="text-white font-semibold">Perfil</TableHead>
+                  <TableHead className="text-white font-semibold">Telefone</TableHead>
+                  <TableHead className="text-white font-semibold">Status</TableHead>
+                  <TableHead className="text-right text-white font-semibold">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -478,35 +478,56 @@ const Customers = () => {
                   </TableRow>
                 ) : (
                   sortedCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
+                    <TableRow key={customer.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       </TableCell>
-                      <TableCell className="font-medium">{customer.full_name}</TableCell>
+                      <TableCell className="font-semibold text-foreground">{customer.full_name}</TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">Cliente</span>
+                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                          <UserCheck className="h-3 w-3" />
+                          Cliente
+                        </span>
                       </TableCell>
-                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell className="text-muted-foreground">{customer.phone}</TableCell>
                       <TableCell>
-                        <span className={`text-sm ${customer.data_consent ? 'text-foreground' : 'text-muted-foreground'}`}>
-                          {customer.data_consent ? 'Ativo' : 'Inativo'}
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                          customer.data_consent 
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-destructive/10 text-destructive'
+                        }`}>
+                          {customer.data_consent ? (
+                            <>
+                              <UserCheck className="h-3 w-3" />
+                              Ativo
+                            </>
+                          ) : (
+                            <>
+                              <UserX className="h-3 w-3" />
+                              Inativo
+                            </>
+                          )}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-1 justify-end">
                           <Button
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleEdit(customer)}
-                            className="bg-[#4A90E2] hover:bg-[#357ABD] text-white"
+                            className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+                            title="Editar cliente"
                           >
-                            Editar
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleDelete(customer.id)}
-                            className="bg-[#E25C5C] hover:bg-[#C94545] text-white"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            title="Excluir cliente"
                           >
-                            Excluir
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
