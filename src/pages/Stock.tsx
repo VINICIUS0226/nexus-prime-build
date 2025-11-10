@@ -73,12 +73,106 @@ const Stock = () => {
       return;
     }
 
-    // TODO: Implementar parser de XML da NF-e
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A importação de XML será implementada em breve",
-    });
-    setDialogOpen(false);
+    try {
+      setLoading(true);
+      const xmlText = await xmlFile.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+      // Extrair todos os itens (det) da nota fiscal
+      const items = xmlDoc.getElementsByTagName('det');
+      
+      if (items.length === 0) {
+        throw new Error("Nenhum item encontrado no XML");
+      }
+
+      let importedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const item = items[i];
+          
+          // Extrair dados do produto
+          const cProd = item.getElementsByTagName('cProd')[0]?.textContent || '';
+          const cEAN = item.getElementsByTagName('cEAN')[0]?.textContent || '';
+          const xProd = item.getElementsByTagName('xProd')[0]?.textContent || '';
+          const qCom = parseFloat(item.getElementsByTagName('qCom')[0]?.textContent || '0');
+          const vUnCom = parseFloat(item.getElementsByTagName('vUnCom')[0]?.textContent || '0');
+
+          // Parsear descrição do produto (formato: "NOME / COR / TAMANHO")
+          const parts = xProd.split('/').map(p => p.trim());
+          const productName = parts[0] || xProd;
+          const color = parts.length >= 2 ? parts[1] : null;
+          const size = parts.length >= 3 ? parts[2] : null;
+
+          // Verificar se o produto já existe pelo código EAN ou SKU
+          const { data: existingVariation } = await supabase
+            .from('product_variations')
+            .select('id, stock_quantity, product_id')
+            .eq('sku', cProd)
+            .maybeSingle();
+
+          if (existingVariation) {
+            // Atualizar estoque existente
+            await supabase
+              .from('product_variations')
+              .update({
+                stock_quantity: existingVariation.stock_quantity + qCom
+              })
+              .eq('id', existingVariation.id);
+          } else {
+            // Criar novo produto
+            const { data: newProduct, error: productError } = await supabase
+              .from('products')
+              .insert({
+                name: productName,
+                barcode: cEAN || null,
+                cost_price: vUnCom
+              })
+              .select()
+              .single();
+
+            if (productError) throw productError;
+
+            // Criar variação do produto
+            await supabase
+              .from('product_variations')
+              .insert({
+                product_id: newProduct.id,
+                sku: cProd,
+                size: size,
+                color: color,
+                stock_quantity: qCom,
+                reserved_quantity: 0,
+                min_stock_level: 5
+              });
+          }
+
+          importedCount++;
+        } catch (itemError: any) {
+          console.error(`Erro ao importar item ${i + 1}:`, itemError);
+          errorCount++;
+        }
+      }
+
+      await fetchVariations();
+      setDialogOpen(false);
+      setXmlFile(null);
+
+      toast({
+        title: "Importação concluída",
+        description: `${importedCount} produtos importados com sucesso${errorCount > 0 ? `, ${errorCount} com erro` : ''}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao importar XML",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredVariations = variations.filter(variation =>
