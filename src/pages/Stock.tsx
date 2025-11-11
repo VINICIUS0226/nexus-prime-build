@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Package, AlertTriangle, Upload } from 'lucide-react';
+import { Search, Package, AlertTriangle, Upload, Edit, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ProductVariation {
   id: string;
@@ -28,6 +30,9 @@ interface ProductVariation {
 const Stock = () => {
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [colorFilter, setColorFilter] = useState('all');
+  const [sizeFilter, setSizeFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [xmlFile, setXmlFile] = useState<File | null>(null);
@@ -175,10 +180,25 @@ const Stock = () => {
     }
   };
 
-  const filteredVariations = variations.filter(variation =>
-    variation.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    variation.products?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVariations = variations.filter(variation => {
+    const matchesSearch = variation.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      variation.products?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesColor = colorFilter === 'all' || variation.color === colorFilter;
+    const matchesSize = sizeFilter === 'all' || variation.size === sizeFilter;
+    
+    let matchesStock = true;
+    if (stockFilter === 'low') {
+      matchesStock = isLowStock(variation);
+    } else if (stockFilter === 'normal') {
+      matchesStock = !isLowStock(variation);
+    }
+    
+    return matchesSearch && matchesColor && matchesSize && matchesStock;
+  });
+
+  const uniqueColors = Array.from(new Set(variations.map(v => v.color).filter(Boolean)));
+  const uniqueSizes = Array.from(new Set(variations.map(v => v.size).filter(Boolean)));
 
   const isLowStock = (variation: ProductVariation) => {
     return variation.stock_quantity <= variation.min_stock_level;
@@ -198,7 +218,7 @@ const Stock = () => {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90">
+              <Button className="bg-gradient-primary shadow-elegant hover:opacity-90">
                 <Upload className="mr-2 h-4 w-4" />
                 Importar XML
               </Button>
@@ -230,81 +250,154 @@ const Stock = () => {
           </Dialog>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por SKU ou produto..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold">Filtros</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por SKU ou produto..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVariations.map((variation) => (
-            <Card key={variation.id} className={`hover:shadow-elegant transition-shadow ${isLowStock(variation) ? 'border-destructive' : ''}`}>
-              <CardContent className="p-6">
-                {variation.products?.image_url && (
-                  <img
-                    src={variation.products.image_url}
-                    alt={variation.products?.name}
-                    className="w-full h-48 object-cover rounded-lg mb-4"
-                  />
-                )}
-                <h3 className="text-xl font-bold mb-2">{variation.products?.name}</h3>
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm">
-                    <span className="font-semibold">SKU:</span> {variation.sku}
-                  </p>
-                  {variation.size && (
-                    <p className="text-sm">
-                      <span className="font-semibold">Tamanho:</span> {variation.size}
-                    </p>
-                  )}
-                  {variation.color && (
-                    <p className="text-sm">
-                      <span className="font-semibold">Cor:</span> {variation.color}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Estoque Total:</span>
-                    <Badge variant={isLowStock(variation) ? "destructive" : "default"}>
-                      {variation.stock_quantity} un.
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Reservado:</span>
-                    <Badge variant="secondary">{variation.reserved_quantity} un.</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Disponível:</span>
-                    <Badge variant="outline">{availableStock(variation)} un.</Badge>
-                  </div>
-                </div>
-                {isLowStock(variation) && (
-                  <div className="mt-4 flex items-center gap-2 text-destructive text-sm">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>Estoque baixo!</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              <Select value={colorFilter} onValueChange={setColorFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por cor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as cores</SelectItem>
+                  {uniqueColors.map(color => (
+                    <SelectItem key={color} value={color || ''}>{color}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-        {filteredVariations.length === 0 && !loading && (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Nenhuma variação encontrada</h3>
-              <p className="text-muted-foreground">
-                {searchTerm ? 'Tente buscar com outros termos' : 'Cadastre produtos com variações para gerenciar o estoque'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por tamanho" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tamanhos</SelectItem>
+                  {uniqueSizes.map(size => (
+                    <SelectItem key={size} value={size || ''}>{size}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={stockFilter} onValueChange={setStockFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status do estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="low">Estoque baixo</SelectItem>
+                  <SelectItem value="normal">Estoque normal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gradient-primary hover:bg-gradient-primary">
+                  <TableHead className="text-white">Produto</TableHead>
+                  <TableHead className="text-white">SKU</TableHead>
+                  <TableHead className="text-white">Cor</TableHead>
+                  <TableHead className="text-white">Tamanho</TableHead>
+                  <TableHead className="text-white text-center">Estoque Total</TableHead>
+                  <TableHead className="text-white text-center">Reservado</TableHead>
+                  <TableHead className="text-white text-center">Disponível</TableHead>
+                  <TableHead className="text-white text-center">Status</TableHead>
+                  <TableHead className="text-white text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredVariations.map((variation) => (
+                  <TableRow key={variation.id} className="hover:bg-muted/30">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {variation.products?.image_url && (
+                          <img
+                            src={variation.products.image_url}
+                            alt={variation.products?.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        )}
+                        <span className="font-medium">{variation.products?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{variation.sku}</TableCell>
+                    <TableCell>
+                      {variation.color ? (
+                        <Badge variant="outline">{variation.color}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {variation.size ? (
+                        <Badge variant="outline">{variation.size}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={isLowStock(variation) ? "destructive" : "default"}>
+                        {variation.stock_quantity}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">{variation.reserved_quantity}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">{availableStock(variation)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {isLowStock(variation) ? (
+                        <div className="flex items-center justify-center gap-1 text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span className="text-xs font-medium">Baixo</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-1 text-success">
+                          <Package className="h-4 w-4" />
+                          <span className="text-xs font-medium">Normal</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {filteredVariations.length === 0 && !loading && (
+              <div className="p-12 text-center">
+                <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Nenhuma variação encontrada</h3>
+                <p className="text-muted-foreground">
+                  {searchTerm || colorFilter !== 'all' || sizeFilter !== 'all' || stockFilter !== 'all' 
+                    ? 'Tente ajustar os filtros de busca' 
+                    : 'Cadastre produtos com variações para gerenciar o estoque'}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
