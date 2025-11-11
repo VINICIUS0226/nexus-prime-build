@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Package, AlertTriangle, Upload, Edit, Filter } from 'lucide-react';
+import { Search, Package, AlertTriangle, Upload, Edit, Filter, Save } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,10 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from '@/components/ui/pagination';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 interface ProductVariation {
   id: string;
@@ -25,8 +29,17 @@ interface ProductVariation {
   products: {
     name: string;
     image_url: string | null;
+    cost_price: number | null;
+    selling_price: number | null;
   };
 }
+
+const editStockSchema = z.object({
+  stock_quantity: z.number().min(0, 'Quantidade não pode ser negativa').int('Deve ser um número inteiro'),
+  min_stock_level: z.number().min(0, 'Nível mínimo não pode ser negativo').int('Deve ser um número inteiro'),
+  cost_price: z.number().min(0, 'Preço de custo não pode ser negativo'),
+  selling_price: z.number().min(0, 'Preço de venda não pode ser negativo'),
+});
 
 const Stock = () => {
   const [variations, setVariations] = useState<ProductVariation[]>([]);
@@ -39,7 +52,19 @@ const Stock = () => {
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingVariation, setEditingVariation] = useState<ProductVariation | null>(null);
   const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof editStockSchema>>({
+    resolver: zodResolver(editStockSchema),
+    defaultValues: {
+      stock_quantity: 0,
+      min_stock_level: 5,
+      cost_price: 0,
+      selling_price: 0,
+    },
+  });
 
   useEffect(() => {
     fetchVariations();
@@ -53,7 +78,9 @@ const Stock = () => {
           *,
           products (
             name,
-            image_url
+            image_url,
+            cost_price,
+            selling_price
           )
         `)
         .order('created_at', { ascending: false });
@@ -63,6 +90,64 @@ const Stock = () => {
     } catch (error: any) {
       toast({
         title: "Erro ao carregar estoque",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = (variation: ProductVariation) => {
+    setEditingVariation(variation);
+    form.reset({
+      stock_quantity: variation.stock_quantity,
+      min_stock_level: variation.min_stock_level,
+      cost_price: variation.products?.cost_price || 0,
+      selling_price: variation.products?.selling_price || 0,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const onSubmitEdit = async (values: z.infer<typeof editStockSchema>) => {
+    if (!editingVariation) return;
+
+    try {
+      setLoading(true);
+
+      // Atualizar variação do produto
+      const { error: variationError } = await supabase
+        .from('product_variations')
+        .update({
+          stock_quantity: values.stock_quantity,
+          min_stock_level: values.min_stock_level,
+        })
+        .eq('id', editingVariation.id);
+
+      if (variationError) throw variationError;
+
+      // Atualizar preços do produto
+      const { error: productError } = await supabase
+        .from('products')
+        .update({
+          cost_price: values.cost_price,
+          selling_price: values.selling_price,
+        })
+        .eq('id', editingVariation.product_id);
+
+      if (productError) throw productError;
+
+      await fetchVariations();
+      setEditDialogOpen(false);
+      setEditingVariation(null);
+
+      toast({
+        title: "Estoque atualizado",
+        description: "As informações foram atualizadas com sucesso",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar estoque",
         description: error.message,
         variant: "destructive",
       });
@@ -437,7 +522,12 @@ const Stock = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-primary hover:text-primary"
+                        onClick={() => handleEditClick(variation)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -459,6 +549,148 @@ const Stock = () => {
             )}
           </CardContent>
         </Card>
+
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Editar Estoque</DialogTitle>
+            </DialogHeader>
+            {editingVariation && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  {editingVariation.products?.image_url && (
+                    <img
+                      src={editingVariation.products.image_url}
+                      alt={editingVariation.products?.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  )}
+                  <div>
+                    <h3 className="font-semibold">{editingVariation.products?.name}</h3>
+                    <p className="text-sm text-muted-foreground">SKU: {editingVariation.sku}</p>
+                    {editingVariation.color && (
+                      <p className="text-xs text-muted-foreground">Cor: {editingVariation.color}</p>
+                    )}
+                    {editingVariation.size && (
+                      <p className="text-xs text-muted-foreground">Tamanho: {editingVariation.size}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="stock_quantity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantidade em Estoque</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="min_stock_level"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Estoque Mínimo</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="cost_price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Preço de Custo</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="selling_price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Preço de Venda</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">Reservado:</span>
+                        <span className="font-medium">{editingVariation.reserved_quantity} un.</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Disponível:</span>
+                        <span className="font-medium">
+                          {form.watch('stock_quantity') - editingVariation.reserved_quantity} un.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditDialogOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button type="submit" className="bg-gradient-primary hover:opacity-90">
+                        <Save className="mr-2 h-4 w-4" />
+                        Salvar
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {filteredVariations.length > 0 && (
           <Card>
