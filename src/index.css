@@ -52,10 +52,8 @@ All colors MUST be HSL.
     --sidebar-ring: 238 85% 64%;
 
     /* Custom design tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(0 100% 71%), hsl(197 78% 54%));
-    --gradient-accent: linear-gradient(135deg, hsl(197 78% 54%), hsl(0 100% 71%));
-    --shadow-elegant: 0 10px 30px -10px hsl(0 100% 71% / 0.3);
-    --shadow-glow: 0 0 40px hsl(0 100% 80% / 0.4);
+    --shadow-elegant: 0 4px 12px -2px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 2px 8px hsl(0 100% 71% / 0.15);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
