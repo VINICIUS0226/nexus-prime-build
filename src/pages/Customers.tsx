@@ -247,7 +247,7 @@ const Customers = () => {
       <div className="space-y-6">
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="bg-gradient-primary text-white border-0 shadow-elegant">
+          <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Usuários ativos</div>
               <div className="text-3xl font-bold mt-1">{customers.length}</div>
@@ -259,7 +259,7 @@ const Customers = () => {
               <div className="text-3xl font-bold mt-1">0</div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-accent text-white border-0 shadow-elegant">
+          <Card className="bg-secondary text-secondary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Clientes</div>
               <div className="text-3xl font-bold mt-1">{customers.length}</div>
@@ -285,7 +285,7 @@ const Customers = () => {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary text-white hover:opacity-90 shadow-elegant">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Cadastrar usuário
               </Button>
@@ -432,7 +432,7 @@ const Customers = () => {
                   }}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-gradient-primary hover:opacity-90">
+                  <Button type="submit" className="bg-primary hover:bg-primary/90">
                     {editingCustomer ? 'Atualizar' : 'Cadastrar'}
                   </Button>
                 </div>
@@ -456,13 +456,13 @@ const Customers = () => {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gradient-primary">
-                  <TableHead className="w-[50px] text-white"></TableHead>
-                  <TableHead className="text-white font-semibold">Nome</TableHead>
-                  <TableHead className="text-white font-semibold">Perfil</TableHead>
-                  <TableHead className="text-white font-semibold">Telefone</TableHead>
-                  <TableHead className="text-white font-semibold">Status</TableHead>
-                  <TableHead className="text-right text-white font-semibold">Ações</TableHead>
+                <TableRow className="bg-primary hover:bg-primary">
+                  <TableHead className="w-[50px] text-primary-foreground"></TableHead>
+                  <TableHead className="text-primary-foreground font-semibold">Nome</TableHead>
+                  <TableHead className="text-primary-foreground font-semibold">Perfil</TableHead>
+                  <TableHead className="text-primary-foreground font-semibold">Telefone</TableHead>
+                  <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
+                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

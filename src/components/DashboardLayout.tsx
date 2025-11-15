@@ -78,8 +78,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                         key={item.name}
                         to={item.href}
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                          isActive
-                            ? 'bg-gradient-primary text-white shadow-glow'
+                        isActive
+                            ? 'bg-primary text-primary-foreground'
                             : 'text-foreground hover:bg-muted'
                         }`}
                       >
@@ -96,8 +96,8 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           {/* User section */}
           <div className="p-4 border-t border-border">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-full bg-gradient-accent flex items-center justify-center">
-                <span className="text-sm font-semibold text-white">
+              <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
+                <span className="text-sm font-semibold text-secondary-foreground">
                   {user?.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
