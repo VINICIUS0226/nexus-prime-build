@@ -2,13 +2,24 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface ProductVariation {
+  id: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  stock_quantity: number;
+  reserved_quantity: number;
+}
 
 interface Product {
   id: string;
@@ -20,11 +31,17 @@ interface Product {
   selling_price: number | null;
   profit_margin: number | null;
   image_url: string | null;
+  product_variations?: ProductVariation[];
 }
 
 const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sizeFilter, setSizeFilter] = useState('all');
+  const [colorFilter, setColorFilter] = useState('all');
+  const [priceRange, setPriceRange] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -56,7 +73,17 @@ const Products = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          product_variations (
+            id,
+            sku,
+            size,
+            color,
+            stock_quantity,
+            reserved_quantity
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -177,11 +204,67 @@ const Products = () => {
     });
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Extrair valores únicos para filtros
+  const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
+  const uniqueSizes = Array.from(new Set(products.flatMap(p => p.product_variations?.map(v => v.size).filter(Boolean) || []))) as string[];
+  const uniqueColors = Array.from(new Set(products.flatMap(p => p.product_variations?.map(v => v.color).filter(Boolean) || []))) as string[];
+
+  const filteredProducts = products.filter(product => {
+    // Filtro de busca
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Filtro de categoria
+    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+
+    // Filtro de tamanho
+    const matchesSize = sizeFilter === 'all' || 
+      product.product_variations?.some(v => v.size === sizeFilter);
+
+    // Filtro de cor
+    const matchesColor = colorFilter === 'all' || 
+      product.product_variations?.some(v => v.color === colorFilter);
+
+    // Filtro de preço
+    let matchesPrice = true;
+    if (priceRange !== 'all' && product.selling_price) {
+      const price = product.selling_price;
+      switch (priceRange) {
+        case '0-50':
+          matchesPrice = price <= 50;
+          break;
+        case '50-100':
+          matchesPrice = price > 50 && price <= 100;
+          break;
+        case '100-200':
+          matchesPrice = price > 100 && price <= 200;
+          break;
+        case '200+':
+          matchesPrice = price > 200;
+          break;
+      }
+    }
+
+    // Filtro de estoque
+    let matchesStock = true;
+    if (stockFilter !== 'all') {
+      const totalStock = product.product_variations?.reduce((sum, v) => sum + (v.stock_quantity - v.reserved_quantity), 0) || 0;
+      switch (stockFilter) {
+        case 'available':
+          matchesStock = totalStock > 0;
+          break;
+        case 'low':
+          matchesStock = totalStock > 0 && totalStock <= 5;
+          break;
+        case 'out':
+          matchesStock = totalStock === 0;
+          break;
+      }
+    }
+
+    return matchesSearch && matchesCategory && matchesSize && matchesColor && matchesPrice && matchesStock;
+  });
 
   return (
     <DashboardLayout>
@@ -350,56 +433,228 @@ const Products = () => {
           </Dialog>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar produtos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        {/* Barra de busca e filtros */}
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, categoria ou código de barras..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Filtros</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Categoria</Label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {uniqueCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Tamanho</Label>
+                <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {uniqueSizes.map(size => (
+                      <SelectItem key={size} value={size}>{size}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Cor</Label>
+                <Select value={colorFilter} onValueChange={setColorFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {uniqueColors.map(color => (
+                      <SelectItem key={color} value={color}>{color}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Faixa de Preço</Label>
+                <Select value={priceRange} onValueChange={setPriceRange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="0-50">Até R$ 50</SelectItem>
+                    <SelectItem value="50-100">R$ 50 - R$ 100</SelectItem>
+                    <SelectItem value="100-200">R$ 100 - R$ 200</SelectItem>
+                    <SelectItem value="200+">Acima de R$ 200</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Disponibilidade</Label>
+                <Select value={stockFilter} onValueChange={setStockFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="available">Em estoque</SelectItem>
+                    <SelectItem value="low">Estoque baixo</SelectItem>
+                    <SelectItem value="out">Sem estoque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <Card key={product.id} className="hover:shadow-elegant transition-shadow">
-              <CardContent className="p-6">
-                {product.image_url && (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-48 object-cover rounded-lg mb-4"
-                  />
-                )}
-                <h3 className="text-xl font-bold mb-2">{product.name}</h3>
-                {product.category && (
-                  <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
-                )}
-                {product.description && (
-                  <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
-                )}
-                {product.selling_price && (
-                  <p className="text-2xl font-bold text-primary mb-4">
-                    R$ {product.selling_price.toFixed(2)}
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(product.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Grid de produtos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredProducts.map((product) => {
+            const totalStock = product.product_variations?.reduce((sum, v) => sum + (v.stock_quantity - v.reserved_quantity), 0) || 0;
+            const isLowStock = totalStock > 0 && totalStock <= 5;
+            const isOutOfStock = totalStock === 0;
+
+            return (
+              <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Imagem do produto */}
+                  <div className="relative">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-56 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-56 bg-muted flex items-center justify-center">
+                        <Package className="h-16 w-16 text-muted-foreground opacity-30" />
+                      </div>
+                    )}
+                    
+                    {/* Badge de status de estoque */}
+                    {isOutOfStock && (
+                      <Badge variant="destructive" className="absolute top-2 right-2">
+                        Esgotado
+                      </Badge>
+                    )}
+                    {isLowStock && (
+                      <Badge variant="default" className="absolute top-2 right-2 bg-accent text-accent-foreground">
+                        Estoque baixo
+                      </Badge>
+                    )}
+                    
+                    {/* Categoria badge */}
+                    {product.category && (
+                      <Badge variant="secondary" className="absolute top-2 left-2">
+                        {product.category}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="p-4 space-y-3">
+                    {/* Nome e descrição */}
+                    <div>
+                      <h3 className="font-bold text-lg line-clamp-2 mb-1">{product.name}</h3>
+                      {product.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                      )}
+                    </div>
+
+                    {/* Variações disponíveis */}
+                    {product.product_variations && product.product_variations.length > 0 && (
+                      <div className="space-y-2">
+                        {/* Tamanhos */}
+                        {product.product_variations.some(v => v.size) && (
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-xs text-muted-foreground">Tamanhos:</span>
+                            {Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).map(size => (
+                              <Badge key={size} variant="outline" className="text-xs">
+                                {size}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Cores */}
+                        {product.product_variations.some(v => v.color) && (
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-xs text-muted-foreground">Cores:</span>
+                            {Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).map(color => (
+                              <Badge key={color} variant="outline" className="text-xs">
+                                {color}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Preço e estoque */}
+                    <div className="flex items-end justify-between">
+                      <div>
+                        {product.selling_price && (
+                          <p className="text-2xl font-bold text-primary">
+                            R$ {product.selling_price.toFixed(2)}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          {totalStock} unidades disponíveis
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex gap-2 pt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        disabled={isOutOfStock}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-1" />
+                        Vender
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(product.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {filteredProducts.length === 0 && !loading && (
