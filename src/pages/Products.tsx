@@ -193,7 +193,7 @@ const Products = () => {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary hover:opacity-90">
+              <Button className="bg-primary hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Novo Produto
               </Button>
@@ -341,7 +341,7 @@ const Products = () => {
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-gradient-primary hover:opacity-90">
+                  <Button type="submit" className="bg-primary hover:bg-primary/90">
                     Cadastrar
                   </Button>
                 </div>

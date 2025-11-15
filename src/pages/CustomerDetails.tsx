@@ -191,7 +191,7 @@ const CustomerDetails = () => {
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-primary text-white border-0 shadow-elegant">
+          <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <ShoppingCart className="h-8 w-8 opacity-80" />
@@ -215,7 +215,7 @@ const CustomerDetails = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-accent text-white border-0 shadow-elegant">
+          <Card className="bg-secondary text-secondary-foreground border-0 shadow-elegant">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <Calendar className="h-8 w-8 opacity-80" />
@@ -333,13 +333,13 @@ const CustomerDetails = () => {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gradient-primary">
-                        <TableHead className="text-white font-semibold">Data</TableHead>
-                        <TableHead className="text-white font-semibold">Subtotal</TableHead>
-                        <TableHead className="text-white font-semibold">Desconto</TableHead>
-                        <TableHead className="text-white font-semibold">Frete</TableHead>
-                        <TableHead className="text-white font-semibold">Total</TableHead>
-                        <TableHead className="text-white font-semibold">Observações</TableHead>
+                      <TableRow className="bg-primary hover:bg-primary">
+                        <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Subtotal</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Desconto</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Frete</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Observações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -369,12 +369,12 @@ const CustomerDetails = () => {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gradient-primary">
-                        <TableHead className="text-white font-semibold">Data</TableHead>
-                        <TableHead className="text-white font-semibold">Código da Sacola</TableHead>
-                        <TableHead className="text-white font-semibold">Status</TableHead>
-                        <TableHead className="text-white font-semibold">Total</TableHead>
-                        <TableHead className="text-white font-semibold">Observações</TableHead>
+                      <TableRow className="bg-primary hover:bg-primary">
+                        <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Código da Sacola</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
+                        <TableHead className="text-primary-foreground font-semibold">Observações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

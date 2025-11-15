@@ -348,7 +348,7 @@ const Stock = () => {
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary shadow-elegant hover:opacity-90">
+              <Button className="bg-primary shadow-elegant hover:bg-primary/90">
                 <Upload className="mr-2 h-4 w-4" />
                 Importar XML
               </Button>
@@ -371,7 +371,7 @@ const Stock = () => {
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleXmlUpload} className="bg-gradient-primary hover:opacity-90">
+                  <Button onClick={handleXmlUpload} className="bg-primary hover:bg-primary/90">
                     Importar
                   </Button>
                 </div>
@@ -455,16 +455,16 @@ const Stock = () => {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gradient-primary hover:bg-gradient-primary">
-                  <TableHead className="text-white">Produto</TableHead>
-                  <TableHead className="text-white">SKU</TableHead>
-                  <TableHead className="text-white">Cor</TableHead>
-                  <TableHead className="text-white">Tamanho</TableHead>
-                  <TableHead className="text-white text-center">Estoque Total</TableHead>
-                  <TableHead className="text-white text-center">Reservado</TableHead>
-                  <TableHead className="text-white text-center">Disponível</TableHead>
-                  <TableHead className="text-white text-center">Status</TableHead>
-                  <TableHead className="text-white text-center">Ações</TableHead>
+                <TableRow className="bg-primary hover:bg-primary">
+                  <TableHead className="text-primary-foreground">Produto</TableHead>
+                  <TableHead className="text-primary-foreground">SKU</TableHead>
+                  <TableHead className="text-primary-foreground">Cor</TableHead>
+                  <TableHead className="text-primary-foreground">Tamanho</TableHead>
+                  <TableHead className="text-primary-foreground text-center">Estoque Total</TableHead>
+                  <TableHead className="text-primary-foreground text-center">Reservado</TableHead>
+                  <TableHead className="text-primary-foreground text-center">Disponível</TableHead>
+                  <TableHead className="text-primary-foreground text-center">Status</TableHead>
+                  <TableHead className="text-primary-foreground text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -680,7 +680,7 @@ const Stock = () => {
                       >
                         Cancelar
                       </Button>
-                      <Button type="submit" className="bg-gradient-primary hover:opacity-90">
+                      <Button type="submit" className="bg-primary hover:bg-primary/90">
                         <Save className="mr-2 h-4 w-4" />
                         Salvar
                       </Button>
