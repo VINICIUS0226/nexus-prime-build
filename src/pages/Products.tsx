@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ interface Product {
 }
 
 const Products = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -182,6 +184,28 @@ const Products = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleEdit = (product: Product) => {
+    navigate(`/dashboard/products/${product.id}`);
+  };
+
+  const handleSell = (product: Product) => {
+    navigate("/dashboard/sales", { state: { selectedProduct: product } });
+  };
+
+  const getAvailableStock = (product: Product) => {
+    return product.product_variations?.reduce(
+      (sum, v) => sum + (v.stock_quantity - v.reserved_quantity),
+      0
+    ) || 0;
+  };
+
+  const getTotalStock = (product: Product) => {
+    return product.product_variations?.reduce(
+      (sum, v) => sum + v.stock_quantity,
+      0
+    ) || 0;
   };
 
   const resetForm = () => {
@@ -533,9 +557,10 @@ const Products = () => {
         {/* Grid de produtos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map((product) => {
-            const totalStock = product.product_variations?.reduce((sum, v) => sum + (v.stock_quantity - v.reserved_quantity), 0) || 0;
-            const isLowStock = totalStock > 0 && totalStock <= 5;
-            const isOutOfStock = totalStock === 0;
+            const availableStock = getAvailableStock(product);
+            const totalStock = getTotalStock(product);
+            const isOutOfStock = availableStock === 0;
+            const isLowStock = availableStock > 0 && availableStock <= 5;
 
             return (
               <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden">
@@ -622,7 +647,7 @@ const Products = () => {
                         )}
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Package className="h-3 w-3" />
-                          {totalStock} unidades disponíveis
+                          {availableStock}/{totalStock} disponíveis
                         </p>
                       </div>
                     </div>
@@ -634,11 +659,16 @@ const Products = () => {
                         size="sm" 
                         className="flex-1"
                         disabled={isOutOfStock}
+                        onClick={() => handleSell(product)}
                       >
                         <ShoppingCart className="h-4 w-4 mr-1" />
                         Vender
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEdit(product)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
