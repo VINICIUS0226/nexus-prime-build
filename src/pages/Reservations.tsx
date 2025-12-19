@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
@@ -78,6 +78,8 @@ const Reservations = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefilledCart = (location.state as any)?.prefilledCart;
   
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -99,6 +101,29 @@ const Reservations = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Load prefilled cart from products page
+  useEffect(() => {
+    if (prefilledCart && variations.length > 0 && !dialogOpen) {
+      const cartItems: CartItem[] = [];
+      for (const item of prefilledCart) {
+        const variation = variations.find(v => v.id === item.variationId);
+        if (variation) {
+          cartItems.push({
+            variation,
+            quantity: item.quantity,
+            unit_price: item.unitPrice
+          });
+        }
+      }
+      if (cartItems.length > 0) {
+        setCart(cartItems);
+        setDialogOpen(true);
+        // Clear location state to prevent re-loading on navigation
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [prefilledCart, variations]);
 
   const fetchData = async () => {
     setLoading(true);

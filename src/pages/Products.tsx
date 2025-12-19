@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle, PackageCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface ProductVariation {
   id: string;
@@ -35,6 +36,15 @@ interface Product {
   product_variations?: ProductVariation[];
 }
 
+interface CartItem {
+  variationId: string;
+  productName: string;
+  variationInfo: string;
+  quantity: number;
+  unitPrice: number;
+  availableStock: number;
+}
+
 const Products = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -47,6 +57,17 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Cart/Selection dialog state
+  const [cartDialogOpen, setCartDialogOpen] = useState(false);
+  const [cartMode, setCartMode] = useState<'sale' | 'reservation'>('sale');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -163,11 +184,17 @@ const Products = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+  const openDeleteDialog = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
 
       if (error) throw error;
 
@@ -183,6 +210,10 @@ const Products = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
     }
   };
 
@@ -190,8 +221,75 @@ const Products = () => {
     navigate(`/dashboard/products/${product.id}`);
   };
 
-  const handleSell = (product: Product) => {
-    navigate("/dashboard/sales", { state: { selectedProduct: product } });
+  const openCartDialog = (product: Product, mode: 'sale' | 'reservation') => {
+    setSelectedProduct(product);
+    setCartMode(mode);
+    setCartItems([]);
+    setCartDialogOpen(true);
+  };
+
+  const addVariationToCart = (variation: ProductVariation) => {
+    const available = variation.stock_quantity - variation.reserved_quantity;
+    if (available <= 0) return;
+
+    const existingIndex = cartItems.findIndex(item => item.variationId === variation.id);
+    
+    if (existingIndex >= 0) {
+      const newItems = [...cartItems];
+      if (newItems[existingIndex].quantity < available) {
+        newItems[existingIndex].quantity += 1;
+        setCartItems(newItems);
+      }
+    } else {
+      const variationInfo = [variation.size, variation.color].filter(Boolean).join(' / ');
+      setCartItems([...cartItems, {
+        variationId: variation.id,
+        productName: selectedProduct?.name || '',
+        variationInfo,
+        quantity: 1,
+        unitPrice: selectedProduct?.selling_price || 0,
+        availableStock: available
+      }]);
+    }
+  };
+
+  const updateCartItemQuantity = (variationId: string, delta: number) => {
+    setCartItems(cartItems.map(item => {
+      if (item.variationId === variationId) {
+        const newQty = item.quantity + delta;
+        if (newQty < 1 || newQty > item.availableStock) return item;
+        return { ...item, quantity: newQty };
+      }
+      return item;
+    }));
+  };
+
+  const removeFromCart = (variationId: string) => {
+    setCartItems(cartItems.filter(item => item.variationId !== variationId));
+  };
+
+  const proceedToCheckout = () => {
+    if (cartItems.length === 0) {
+      toast({
+        title: "Carrinho vazio",
+        description: "Adicione pelo menos uma variação ao carrinho.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const cartData = cartItems.map(item => ({
+      variationId: item.variationId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice
+    }));
+
+    if (cartMode === 'sale') {
+      navigate('/dashboard/sales', { state: { prefilledCart: cartData } });
+    } else {
+      navigate('/dashboard/reservations', { state: { prefilledCart: cartData } });
+    }
+    setCartDialogOpen(false);
   };
 
   const getAvailableStock = (product: Product) => {
@@ -659,7 +757,7 @@ const Products = () => {
                         size="sm" 
                         className="flex-1"
                         disabled={isOutOfStock}
-                        onClick={() => handleSell(product)}
+                        onClick={() => openCartDialog(product, 'sale')}
                       >
                         <ShoppingCart className="h-4 w-4 mr-1" />
                         Vender
@@ -667,15 +765,29 @@ const Products = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
+                        className="flex-1"
+                        disabled={isOutOfStock}
+                        onClick={() => openCartDialog(product, 'reservation')}
+                      >
+                        <PackageCheck className="h-4 w-4 mr-1" />
+                        Reservar
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="flex-1"
                         onClick={() => handleEdit(product)}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-4 w-4 mr-1" />
+                        Editar
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(product.id)}
-                        className="text-destructive hover:text-destructive"
+                        onClick={() => openDeleteDialog(product)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -698,6 +810,180 @@ const Products = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o produto <strong>"{productToDelete?.name}"</strong>?
+                Esta ação não pode ser desfeita e removerá todas as variações associadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Excluindo...' : 'Excluir'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Cart Selection Dialog */}
+        <Dialog open={cartDialogOpen} onOpenChange={setCartDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {cartMode === 'sale' ? 'Adicionar à Venda' : 'Adicionar à Reserva'}
+              </DialogTitle>
+              <DialogDescription>
+                Selecione as variações e quantidades do produto "{selectedProduct?.name}"
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Product Info */}
+              <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
+                {selectedProduct?.image_url ? (
+                  <img 
+                    src={selectedProduct.image_url} 
+                    alt={selectedProduct.name}
+                    className="w-20 h-20 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-semibold">{selectedProduct?.name}</h3>
+                  {selectedProduct?.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{selectedProduct.description}</p>
+                  )}
+                  <p className="text-lg font-bold text-primary mt-1">
+                    R$ {selectedProduct?.selling_price?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Available Variations */}
+              <div>
+                <Label className="mb-2 block">Variações Disponíveis</Label>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {selectedProduct?.product_variations?.map(variation => {
+                    const available = variation.stock_quantity - variation.reserved_quantity;
+                    const inCart = cartItems.find(item => item.variationId === variation.id);
+                    
+                    return (
+                      <div 
+                        key={variation.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">
+                            {[variation.size, variation.color].filter(Boolean).join(' / ') || variation.sku}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            SKU: {variation.sku} | Disponível: {available}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={inCart ? "secondary" : "default"}
+                          onClick={() => addVariationToCart(variation)}
+                          disabled={available <= 0}
+                        >
+                          {inCart ? `Adicionado (${inCart.quantity})` : <Plus className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Cart Items */}
+              {cartItems.length > 0 && (
+                <div>
+                  <Label className="mb-2 block">Itens Selecionados</Label>
+                  <div className="space-y-2 border rounded-lg p-3">
+                    {cartItems.map(item => (
+                      <div key={item.variationId} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <div>
+                          <p className="text-sm font-medium">{item.productName}</p>
+                          <p className="text-xs text-muted-foreground">{item.variationInfo || 'Variação padrão'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            onClick={() => updateCartItemQuantity(item.variationId, -1)}
+                          >
+                            <span className="text-lg">-</span>
+                          </Button>
+                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            onClick={() => updateCartItemQuantity(item.variationId, 1)}
+                          >
+                            <span className="text-lg">+</span>
+                          </Button>
+                          <span className="w-24 text-right text-sm font-medium">
+                            R$ {(item.unitPrice * item.quantity).toFixed(2)}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => removeFromCart(item.variationId)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center pt-2 border-t mt-2">
+                      <span className="font-semibold">Total:</span>
+                      <span className="font-bold text-lg text-primary">
+                        R$ {cartItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCartDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={proceedToCheckout}
+                disabled={cartItems.length === 0}
+                className={cartMode === 'sale' ? 'bg-primary' : 'bg-success text-success-foreground hover:bg-success/90'}
+              >
+                {cartMode === 'sale' ? (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Ir para Venda
+                  </>
+                ) : (
+                  <>
+                    <PackageCheck className="h-4 w-4 mr-2" />
+                    Ir para Reserva
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
