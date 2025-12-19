@@ -17,10 +17,12 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Plus, DollarSign, Trash2, Eye, Search, Package, 
   CreditCard, Banknote, QrCode, Receipt, TrendingUp,
-  Minus, CheckCircle, Clock, User, Calendar
+  Minus, CheckCircle, Clock, User, Calendar, Printer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { SaleReceipt } from '@/components/SaleReceipt';
+import { usePrint } from '@/hooks/usePrint';
 
 interface Customer {
   id: string;
@@ -74,6 +76,13 @@ interface Payment {
   paid_at: string | null;
 }
 
+interface SaleItem {
+  product_name: string;
+  variation_info: string;
+  quantity: number;
+  unit_price: number;
+}
+
 interface Sale {
   id: string;
   reservation_id: string | null;
@@ -87,6 +96,7 @@ interface Sale {
   customer?: Customer;
   reservation?: Reservation;
   payments?: Payment[];
+  items?: SaleItem[];
 }
 
 interface CartItem {
@@ -114,6 +124,7 @@ const Sales = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reservationIdParam = searchParams.get('reservation');
+  const { printRef, handlePrint } = usePrint();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -123,6 +134,7 @@ const Sales = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   
   // Form state
   const [saleMode, setSaleMode] = useState<'direct' | 'reservation'>('direct');
@@ -203,6 +215,47 @@ const Sales = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSaleItems = async (sale: Sale) => {
+    try {
+      if (sale.reservation_id) {
+        // Fetch from reservation_items if sale was from a reservation
+        const { data, error } = await supabase
+          .from('reservation_items')
+          .select(`
+            quantity, unit_price,
+            variation:product_variations(
+              size, color,
+              product:products(name)
+            )
+          `)
+          .eq('reservation_id', sale.reservation_id);
+
+        if (error) throw error;
+
+        const items: SaleItem[] = (data || []).map((item: any) => ({
+          product_name: item.variation?.product?.name || 'Produto',
+          variation_info: [item.variation?.size, item.variation?.color].filter(Boolean).join(' / '),
+          quantity: item.quantity,
+          unit_price: item.unit_price
+        }));
+        setSaleItems(items);
+      } else {
+        // For direct sales, we need to look at what was in the cart at time of sale
+        // Since we don't have a sale_items table, we'll show the totals only
+        setSaleItems([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching sale items:', error);
+      setSaleItems([]);
+    }
+  };
+
+  const handleViewSale = async (sale: Sale) => {
+    setSelectedSale(sale);
+    setDetailsOpen(true);
+    await fetchSaleItems(sale);
   };
 
   const loadReservationToSale = (reservation: Reservation) => {
@@ -923,10 +976,7 @@ const Sales = () => {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => {
-                            setSelectedSale(sale);
-                            setDetailsOpen(true);
-                          }}
+                          onClick={() => handleViewSale(sale)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -943,7 +993,13 @@ const Sales = () => {
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
+              <div className="flex items-center justify-between">
+                <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
+                <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
+                  <Printer className="h-4 w-4" />
+                  Imprimir Recibo
+                </Button>
+              </div>
             </DialogHeader>
             {selectedSale && (
               <div className="space-y-4">
@@ -960,6 +1016,28 @@ const Sales = () => {
                     </p>
                   </div>
                 </div>
+
+                {saleItems.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground mb-2 block">Itens da Venda</Label>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {saleItems.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                          <div>
+                            <p className="font-medium text-sm">{item.product_name}</p>
+                            {item.variation_info && (
+                              <p className="text-xs text-muted-foreground">{item.variation_info}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm">{item.quantity}x R$ {item.unit_price.toFixed(2)}</p>
+                            <p className="font-medium text-sm">R$ {(item.quantity * item.unit_price).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {selectedSale.notes && (
                   <div>
@@ -1015,6 +1093,20 @@ const Sales = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Hidden Receipt for Printing */}
+        <div className="hidden">
+          {selectedSale && (
+            <SaleReceipt
+              ref={printRef}
+              sale={{
+                ...selectedSale,
+                items: saleItems
+              }}
+              companyName="Minha Loja"
+            />
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
