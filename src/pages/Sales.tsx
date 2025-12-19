@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, DollarSign, Trash2, Eye, Search, Package, 
   CreditCard, Banknote, QrCode, Receipt, TrendingUp,
@@ -122,8 +122,10 @@ const Sales = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const reservationIdParam = searchParams.get('reservation');
+  const prefilledCart = (location.state as any)?.prefilledCart;
   const { printRef, handlePrint } = usePrint();
 
   const [sales, setSales] = useState<Sale[]>([]);
@@ -161,6 +163,29 @@ const Sales = () => {
       }
     }
   }, [reservationIdParam, reservations]);
+
+  // Load prefilled cart from products page
+  useEffect(() => {
+    if (prefilledCart && variations.length > 0 && !dialogOpen) {
+      const cartItems: CartItem[] = [];
+      for (const item of prefilledCart) {
+        const variation = variations.find(v => v.id === item.variationId);
+        if (variation) {
+          cartItems.push({
+            variation,
+            quantity: item.quantity,
+            unit_price: item.unitPrice
+          });
+        }
+      }
+      if (cartItems.length > 0) {
+        setCart(cartItems);
+        setDialogOpen(true);
+        // Clear location state to prevent re-loading on navigation
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [prefilledCart, variations]);
 
   const fetchData = async () => {
     setLoading(true);
