@@ -80,6 +80,7 @@ const Reservations = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const prefilledCart = (location.state as any)?.prefilledCart;
+  const prefilledCustomer = (location.state as any)?.prefilledCustomer;
   
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -118,6 +119,10 @@ const Reservations = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
+        // Set prefilled customer if available
+        if (prefilledCustomer) {
+          setSelectedCustomer(prefilledCustomer.id);
+        }
         setDialogOpen(true);
         // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
