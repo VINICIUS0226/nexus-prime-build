@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle, PackageCheck } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle, PackageCheck, User, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +45,13 @@ interface CartItem {
   availableStock: number;
 }
 
+interface Customer {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string | null;
+}
+
 const Products = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
@@ -68,6 +75,12 @@ const Products = () => {
   const [cartMode, setCartMode] = useState<'sale' | 'reservation'>('sale');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  // Customer selection state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -225,8 +238,42 @@ const Products = () => {
     setSelectedProduct(product);
     setCartMode(mode);
     setCartItems([]);
+    setSelectedCustomer(null);
+    setCustomerSearch('');
     setCartDialogOpen(true);
   };
+
+  const searchCustomers = async (search: string) => {
+    if (search.length < 2) {
+      setCustomers([]);
+      return;
+    }
+    
+    setLoadingCustomers(true);
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, full_name, phone, email')
+        .or(`full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
+        .limit(10);
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      console.error('Error searching customers:', error);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (customerSearch) {
+        searchCustomers(customerSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [customerSearch]);
 
   const addVariationToCart = (variation: ProductVariation) => {
     const available = variation.stock_quantity - variation.reserved_quantity;
@@ -284,10 +331,15 @@ const Products = () => {
       unitPrice: item.unitPrice
     }));
 
+    const stateData: any = { prefilledCart: cartData };
+    if (selectedCustomer) {
+      stateData.prefilledCustomer = selectedCustomer;
+    }
+
     if (cartMode === 'sale') {
-      navigate('/dashboard/sales', { state: { prefilledCart: cartData } });
+      navigate('/dashboard/sales', { state: stateData });
     } else {
-      navigate('/dashboard/reservations', { state: { prefilledCart: cartData } });
+      navigate('/dashboard/reservations', { state: stateData });
     }
     setCartDialogOpen(false);
   };
@@ -846,7 +898,78 @@ const Products = () => {
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Customer Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Cliente (opcional)
+                </Label>
+                {selectedCustomer ? (
+                  <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                    <div>
+                      <p className="font-medium">{selectedCustomer.full_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCustomer.phone} {selectedCustomer.email && `• ${selectedCustomer.email}`}
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setCustomerSearch('');
+                        setCustomers([]);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar cliente por nome, telefone ou email..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                    {customerSearch.length >= 2 && (
+                      <div className="absolute z-10 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-[200px] overflow-y-auto">
+                        {loadingCustomers ? (
+                          <div className="p-3 text-center text-muted-foreground text-sm">
+                            Buscando...
+                          </div>
+                        ) : customers.length > 0 ? (
+                          customers.map(customer => (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              className="w-full text-left p-3 hover:bg-muted transition-colors border-b last:border-b-0"
+                              onClick={() => {
+                                setSelectedCustomer(customer);
+                                setCustomerSearch('');
+                                setCustomers([]);
+                              }}
+                            >
+                              <p className="font-medium">{customer.full_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {customer.phone} {customer.email && `• ${customer.email}`}
+                              </p>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-muted-foreground text-sm">
+                            Nenhum cliente encontrado
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Product Info */}
               <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
                 {selectedProduct?.image_url ? (
