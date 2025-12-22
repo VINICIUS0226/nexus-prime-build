@@ -36,11 +36,18 @@ interface Sale {
   items?: SaleItem[];
 }
 
+interface StoreConfig {
+  store_name?: string;
+  store_phone?: string;
+  store_email?: string;
+  store_address?: string;
+  store_cnpj?: string;
+  store_logo_url?: string;
+}
+
 interface SaleReceiptProps {
   sale: Sale;
-  companyName?: string;
-  companyAddress?: string;
-  companyPhone?: string;
+  storeConfig?: StoreConfig;
 }
 
 const paymentMethodLabels: Record<string, string> = {
@@ -52,7 +59,14 @@ const paymentMethodLabels: Record<string, string> = {
 };
 
 export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
-  ({ sale, companyName = "Minha Loja", companyAddress, companyPhone }, ref) => {
+  ({ sale, storeConfig }, ref) => {
+    const storeName = storeConfig?.store_name || 'Minha Loja';
+    const storeAddress = storeConfig?.store_address;
+    const storePhone = storeConfig?.store_phone;
+    const storeEmail = storeConfig?.store_email;
+    const storeCnpj = storeConfig?.store_cnpj;
+    const storeLogo = storeConfig?.store_logo_url;
+
     return (
       <div 
         ref={ref}
@@ -61,9 +75,15 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
       >
         {/* Header */}
         <div className="text-center border-b-2 border-dashed border-black pb-4 mb-4">
-          <h1 className="text-xl font-bold uppercase">{companyName}</h1>
-          {companyAddress && <p className="text-xs mt-1">{companyAddress}</p>}
-          {companyPhone && <p className="text-xs">{companyPhone}</p>}
+          {storeLogo && (
+            <img src={storeLogo} alt="Logo" className="h-16 mx-auto mb-2 object-contain" />
+          )}
+          <h1 className="text-xl font-bold uppercase">{storeName}</h1>
+          {storeCnpj && <p className="text-xs">CNPJ: {storeCnpj}</p>}
+          {storeAddress && <p className="text-xs mt-1">{storeAddress}</p>}
+          {(storePhone || storeEmail) && (
+            <p className="text-xs">{[storePhone, storeEmail].filter(Boolean).join(' | ')}</p>
+          )}
           <p className="text-xs mt-2">COMPROVANTE DE VENDA</p>
         </div>
 

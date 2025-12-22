@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SaleReceipt } from '@/components/SaleReceipt';
 import { usePrint } from '@/hooks/usePrint';
+import { useStoreConfig } from '@/hooks/useStoreConfig';
 
 interface Customer {
   id: string;
@@ -128,6 +129,7 @@ const Sales = () => {
   const prefilledCart = (location.state as any)?.prefilledCart;
   const prefilledCustomer = (location.state as any)?.prefilledCustomer;
   const { printRef, handlePrint } = usePrint();
+  const { config: storeConfig } = useStoreConfig();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1133,7 +1135,7 @@ const Sales = () => {
                 ...selectedSale,
                 items: saleItems
               }}
-              companyName="Minha Loja"
+              storeConfig={storeConfig}
             />
           )}
         </div>
