@@ -126,6 +126,7 @@ const Sales = () => {
   const [searchParams] = useSearchParams();
   const reservationIdParam = searchParams.get('reservation');
   const prefilledCart = (location.state as any)?.prefilledCart;
+  const prefilledCustomer = (location.state as any)?.prefilledCustomer;
   const { printRef, handlePrint } = usePrint();
 
   const [sales, setSales] = useState<Sale[]>([]);
@@ -180,6 +181,10 @@ const Sales = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
+        // Set prefilled customer if available
+        if (prefilledCustomer) {
+          setSelectedCustomer(prefilledCustomer.id);
+        }
         setDialogOpen(true);
         // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
