@@ -5,13 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Store, Upload, Loader2, Save, X } from 'lucide-react';
+import { Store, Upload, Loader2, Save, X, Palette, Sun, Moon, Monitor, Check } from 'lucide-react';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useTheme, PRESET_COLORS, ThemeMode } from '@/hooks/useTheme';
+import { cn } from '@/lib/utils';
 
 const Settings = () => {
   const { config, loading, saving, saveConfig, refetch } = useStoreConfig();
+  const { theme, loading: themeLoading, saveTheme } = useTheme();
+  const [selectedMode, setSelectedMode] = useState<ThemeMode>('light');
+  const [selectedColor, setSelectedColor] = useState('0 100% 71%');
+  const [savingTheme, setSavingTheme] = useState(false);
   const [formData, setFormData] = useState({
     store_name: '',
     store_phone: '',
@@ -35,6 +41,14 @@ const Settings = () => {
       });
     }
   }, [config, loading]);
+
+  // Sync theme state
+  useEffect(() => {
+    if (!themeLoading) {
+      setSelectedMode(theme.theme_mode);
+      setSelectedColor(theme.primary_color);
+    }
+  }, [theme, themeLoading]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -94,6 +108,20 @@ const Settings = () => {
     } else {
       toast.error('Erro ao salvar configurações');
     }
+  };
+
+  const handleSaveTheme = async () => {
+    setSavingTheme(true);
+    const result = await saveTheme({
+      theme_mode: selectedMode,
+      primary_color: selectedColor,
+    });
+    if (result.success) {
+      toast.success('Tema salvo com sucesso!');
+    } else {
+      toast.error('Erro ao salvar tema');
+    }
+    setSavingTheme(false);
   };
 
   const formatPhone = (value: string) => {
@@ -303,6 +331,134 @@ const Settings = () => {
                   <>
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Configurações
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Theme Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              Aparência
+            </CardTitle>
+            <CardDescription>
+              Personalize o tema e as cores do sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Theme Mode */}
+            <div className="space-y-3">
+              <Label>Modo do Tema</Label>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant={selectedMode === 'light' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setSelectedMode('light')}
+                >
+                  <Sun className="h-4 w-4 mr-2" />
+                  Claro
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedMode === 'dark' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setSelectedMode('dark')}
+                >
+                  <Moon className="h-4 w-4 mr-2" />
+                  Escuro
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedMode === 'system' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setSelectedMode('system')}
+                >
+                  <Monitor className="h-4 w-4 mr-2" />
+                  Sistema
+                </Button>
+              </div>
+            </div>
+
+            {/* Primary Color */}
+            <div className="space-y-3">
+              <Label>Cor Principal</Label>
+              <div className="grid grid-cols-4 gap-3">
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color.name}
+                    type="button"
+                    onClick={() => setSelectedColor(color.primary)}
+                    className={cn(
+                      'relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all',
+                      selectedColor === color.primary
+                        ? 'border-foreground shadow-md'
+                        : 'border-border hover:border-muted-foreground/50'
+                    )}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full shadow-inner"
+                      style={{ backgroundColor: `hsl(${color.primary})` }}
+                    />
+                    <span className="text-xs font-medium">{color.name}</span>
+                    {selectedColor === color.primary && (
+                      <div className="absolute top-1 right-1">
+                        <Check className="h-4 w-4 text-foreground" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="border-t pt-6">
+              <h3 className="font-semibold mb-3 text-sm text-muted-foreground">
+                Prévia do Tema
+              </h3>
+              <div className="bg-muted/50 rounded-lg p-4 border space-y-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full"
+                    style={{ backgroundColor: `hsl(${selectedColor})` }}
+                  />
+                  <div>
+                    <p className="font-semibold">Cor principal selecionada</p>
+                    <p className="text-xs text-muted-foreground">
+                      {PRESET_COLORS.find(c => c.primary === selectedColor)?.name || 'Personalizada'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    style={{ backgroundColor: `hsl(${selectedColor})` }}
+                  >
+                    Botão Primário
+                  </Button>
+                  <Button size="sm" variant="outline">
+                    Botão Secundário
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleSaveTheme} disabled={savingTheme}>
+                {savingTheme ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Tema
                   </>
                 )}
               </Button>
