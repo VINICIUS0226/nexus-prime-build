@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Settings as SettingsIcon, Store, Upload, Loader2, Save } from 'lucide-react';
+import { Store, Upload, Loader2, Save, X } from 'lucide-react';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Settings = () => {
-  const { config, loading, saving, saveConfig } = useStoreConfig();
+  const { config, loading, saving, saveConfig, refetch } = useStoreConfig();
   const [formData, setFormData] = useState({
     store_name: '',
     store_phone: '',
@@ -19,6 +20,8 @@ const Settings = () => {
     store_cnpj: '',
     store_logo_url: '',
   });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -37,10 +40,57 @@ const Settings = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione apenas arquivos de imagem');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 2MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('store-logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('store-logos')
+        .getPublicUrl(fileName);
+
+      setFormData((prev) => ({ ...prev, store_logo_url: publicUrl }));
+      toast.success('Logo enviado com sucesso!');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Erro ao enviar logo');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData((prev) => ({ ...prev, store_logo_url: '' }));
+  };
+
   const handleSave = async () => {
     const result = await saveConfig(formData);
     if (result.success) {
       toast.success('Configurações salvas com sucesso!');
+      refetch();
     } else {
       toast.error('Erro ao salvar configurações');
     }
@@ -86,33 +136,63 @@ const Settings = () => {
               Dados da Loja
             </CardTitle>
             <CardDescription>
-              Estas informações aparecem nos recibos de venda
+              Estas informações aparecem nos recibos de venda e no sidebar
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Logo Preview */}
+            {/* Logo Upload */}
             <div className="space-y-2">
               <Label>Logo da Loja</Label>
               <div className="flex items-center gap-4">
-                <div className="w-24 h-24 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center overflow-hidden bg-muted">
+                <div className="w-24 h-24 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center overflow-hidden bg-muted relative group">
                   {formData.store_logo_url ? (
-                    <img 
-                      src={formData.store_logo_url} 
-                      alt="Logo da loja" 
-                      className="w-full h-full object-contain"
-                    />
+                    <>
+                      <img 
+                        src={formData.store_logo_url} 
+                        alt="Logo da loja" 
+                        className="w-full h-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </>
                   ) : (
                     <Store className="h-8 w-8 text-muted-foreground/50" />
                   )}
                 </div>
                 <div className="flex-1 space-y-2">
-                  <Input
-                    placeholder="URL da imagem do logo"
-                    value={formData.store_logo_url}
-                    onChange={(e) => handleInputChange('store_logo_url', e.target.value)}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                    id="logo-upload"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Enviar Logo
+                      </>
+                    )}
+                  </Button>
                   <p className="text-xs text-muted-foreground">
-                    Insira a URL de uma imagem hospedada externamente
+                    Formatos aceitos: PNG, JPG, WEBP. Máximo 2MB.
                   </p>
                 </div>
               </div>

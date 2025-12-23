@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
@@ -11,9 +12,9 @@ import {
   LogOut,
   Box,
   Settings,
-  CreditCard
+  CreditCard,
+  Store
 } from 'lucide-react';
-import logo from '@/assets/logo.png';
 
 const navigationSections = [
   {
@@ -50,6 +51,7 @@ const navigationSections = [
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
+  const { config } = useStoreConfig();
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,8 +60,21 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-4 border-b border-border">
-            <Link to="/dashboard">
-              <img src={logo} alt="PQueninos - Moda Infantil e Juvenil" className="w-full h-auto" />
+            <Link to="/dashboard" className="flex items-center justify-center gap-2">
+              {config.store_logo_url ? (
+                <img 
+                  src={config.store_logo_url} 
+                  alt={config.store_name || 'Logo da Loja'} 
+                  className="max-h-12 w-auto object-contain" 
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-foreground">
+                  <Store className="h-8 w-8" />
+                  <span className="font-bold text-lg">
+                    {config.store_name || 'Minha Loja'}
+                  </span>
+                </div>
+              )}
             </Link>
           </div>
 
