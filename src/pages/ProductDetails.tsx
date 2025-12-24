@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,6 +21,26 @@ interface ProductVariation {
   stock_quantity: number;
   reserved_quantity: number;
   min_stock_level: number | null;
+}
+
+interface ProductImage {
+  id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+  alt_text: string | null;
+}
+
+interface ProductReview {
+  id: string;
+  rating: number;
+  title: string | null;
+  comment: string | null;
+  is_verified_purchase: boolean;
+  created_at: string;
+  customer: {
+    full_name: string;
+  };
 }
 
 interface Product {
@@ -53,12 +76,17 @@ const ProductDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
+  const [productImages, setProductImages] = useState<ProductImage[]>([]);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [salesHistory, setSalesHistory] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
     if (id) {
       fetchProductDetails();
+      fetchProductImages();
+      fetchReviews();
       fetchSalesHistory();
     }
   }, [id]);
@@ -87,9 +115,41 @@ const ProductDetails = () => {
     }
   };
 
+  const fetchProductImages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("product_images")
+        .select("*")
+        .eq("product_id", id)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      setProductImages(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar imagens:", error);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("product_reviews")
+        .select(`
+          *,
+          customer:customers (full_name)
+        `)
+        .eq("product_id", id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar avaliações:", error);
+    }
+  };
+
   const fetchSalesHistory = async () => {
     try {
-      // First get all product variations for this product
       const { data: variations } = await supabase
         .from("product_variations")
         .select("id")
@@ -99,7 +159,6 @@ const ProductDetails = () => {
 
       const variationIds = variations.map(v => v.id);
 
-      // Then get reservation items for these variations
       const { data: reservationItems } = await supabase
         .from("reservation_items")
         .select(`
@@ -119,10 +178,8 @@ const ProductDetails = () => {
         return;
       }
 
-      // Get reservation IDs
       const reservationIds = [...new Set(reservationItems.map(item => item.reservation_id))];
 
-      // Get sales for these reservations
       const { data: sales } = await supabase
         .from("sales")
         .select(`
@@ -140,7 +197,6 @@ const ProductDetails = () => {
         return;
       }
 
-      // Combine the data
       const salesData = reservationItems
         .map(item => {
           const sale = sales.find(s => s.reservation_id === item.reservation_id);
@@ -195,6 +251,47 @@ const ProductDetails = () => {
     return { label: "Disponível", variant: "default" as const };
   };
 
+  const getAverageRating = () => {
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+    return sum / reviews.length;
+  };
+
+  const getRatingDistribution = () => {
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach(review => {
+      distribution[review.rating as keyof typeof distribution]++;
+    });
+    return distribution;
+  };
+
+  // Get all images for gallery (product main image + additional images)
+  const allImages = () => {
+    const images: { url: string; alt: string }[] = [];
+    
+    // Add additional images first (sorted by display_order)
+    productImages.forEach(img => {
+      images.push({ url: img.image_url, alt: img.alt_text || product?.name || 'Imagem do produto' });
+    });
+    
+    // If no additional images but has main image_url, use it
+    if (images.length === 0 && product?.image_url) {
+      images.push({ url: product.image_url, alt: product.name });
+    }
+    
+    return images;
+  };
+
+  const images = allImages();
+
+  const nextImage = () => {
+    setSelectedImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -219,9 +316,13 @@ const ProductDetails = () => {
     );
   }
 
+  const averageRating = getAverageRating();
+  const ratingDistribution = getRatingDistribution();
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -230,105 +331,297 @@ const ProductDetails = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{product.name}</h1>
-            <p className="text-muted-foreground">{product.category || "Sem categoria"}</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">{product.name}</h1>
+              {product.category && (
+                <Badge variant="secondary">{product.category}</Badge>
+              )}
+            </div>
+            {averageRating > 0 && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-4 w-4 ${
+                        star <= averageRating
+                          ? "text-yellow-500 fill-yellow-500"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {averageRating.toFixed(1)} ({reviews.length} avaliações)
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Total</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getTotalStock()} un</div>
-              <p className="text-xs text-muted-foreground">
-                {getAvailableStock()} disponíveis
-              </p>
+        {/* Main content grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Image Gallery */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              {images.length > 0 ? (
+                <div className="relative">
+                  {/* Main Image */}
+                  <div className="relative aspect-square bg-muted">
+                    <img
+                      src={images[selectedImageIndex].url}
+                      alt={images[selectedImageIndex].alt}
+                      className="w-full h-full object-cover"
+                    />
+                    
+                    {/* Navigation arrows */}
+                    {images.length > 1 && (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 opacity-80 hover:opacity-100"
+                          onClick={prevImage}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-80 hover:opacity-100"
+                          onClick={nextImage}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+                      </>
+                    )}
+
+                    {/* Image counter */}
+                    {images.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full text-sm">
+                        {selectedImageIndex + 1} / {images.length}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thumbnails */}
+                  {images.length > 1 && (
+                    <div className="flex gap-2 p-4 overflow-x-auto">
+                      {images.map((img, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImageIndex(index)}
+                          className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                            index === selectedImageIndex
+                              ? "border-primary"
+                              : "border-transparent hover:border-muted-foreground/50"
+                          }`}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.alt}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="aspect-square bg-muted flex flex-col items-center justify-center">
+                  <ImageIcon className="h-24 w-24 text-muted-foreground/30 mb-4" />
+                  <p className="text-muted-foreground">Nenhuma imagem disponível</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vendido</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getTotalSales()} un</div>
-              <p className="text-xs text-muted-foreground">
-                {salesHistory.length} vendas
-              </p>
-            </CardContent>
-          </Card>
+          {/* Product Info */}
+          <div className="space-y-6">
+            {/* Price and Stock Card */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                {product.selling_price && (
+                  <div>
+                    <p className="text-4xl font-bold text-primary">
+                      R$ {product.selling_price.toFixed(2)}
+                    </p>
+                    {product.cost_price && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Custo: R$ {product.cost_price.toFixed(2)} | Margem: {product.profit_margin || 0}%
+                      </p>
+                    )}
+                  </div>
+                )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                R$ {getTotalRevenue().toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Margem: {product.profit_margin || 0}%
-              </p>
-            </CardContent>
-          </Card>
+                <Separator />
+
+                {/* Stock Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estoque Total</p>
+                    <p className="text-2xl font-semibold">{getTotalStock()} un</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Disponível</p>
+                    <p className="text-2xl font-semibold text-primary">{getAvailableStock()} un</p>
+                  </div>
+                </div>
+
+                {/* Available sizes and colors */}
+                {product.product_variations.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      {/* Sizes */}
+                      {product.product_variations.some(v => v.size) && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Tamanhos disponíveis</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).map(size => {
+                              const variation = product.product_variations.find(v => v.size === size);
+                              const available = variation ? variation.stock_quantity - variation.reserved_quantity : 0;
+                              return (
+                                <Badge 
+                                  key={size} 
+                                  variant={available > 0 ? "outline" : "secondary"}
+                                  className={available === 0 ? "opacity-50 line-through" : ""}
+                                >
+                                  {size}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Colors */}
+                      {product.product_variations.some(v => v.color) && (
+                        <div>
+                          <p className="text-sm font-medium mb-2">Cores disponíveis</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).map(color => {
+                              const variation = product.product_variations.find(v => v.color === color);
+                              const available = variation ? variation.stock_quantity - variation.reserved_quantity : 0;
+                              return (
+                                <Badge 
+                                  key={color} 
+                                  variant={available > 0 ? "outline" : "secondary"}
+                                  className={available === 0 ? "opacity-50 line-through" : ""}
+                                >
+                                  {color}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                  <Button 
+                    className="flex-1"
+                    disabled={getAvailableStock() === 0}
+                    onClick={() => navigate('/dashboard/sales')}
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Vender
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    disabled={getAvailableStock() === 0}
+                    onClick={() => navigate('/dashboard/reservations')}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Reservar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Vendido</CardTitle>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{getTotalSales()} un</div>
+                  <p className="text-xs text-muted-foreground">
+                    {salesHistory.length} vendas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    R$ {getTotalRevenue().toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Margem: {product.profit_margin || 0}%
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
 
-        <Tabs defaultValue="details" className="space-y-4">
+        {/* Tabs for additional info */}
+        <Tabs defaultValue="description" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="variations">Variações</TabsTrigger>
+            <TabsTrigger value="description">Descrição</TabsTrigger>
+            <TabsTrigger value="variations">Variações ({product.product_variations.length})</TabsTrigger>
+            <TabsTrigger value="reviews">
+              Avaliações ({reviews.length})
+            </TabsTrigger>
             <TabsTrigger value="sales">Histórico de Vendas</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-4">
+          {/* Description Tab */}
+          <TabsContent value="description" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Informações do Produto</CardTitle>
+                <CardTitle>Descrição do Produto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {product.image_url && (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full max-w-md h-64 object-cover rounded-lg"
-                  />
+                {product.description ? (
+                  <div className="prose prose-sm max-w-none">
+                    <p className="whitespace-pre-wrap text-foreground">{product.description}</p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground italic">Nenhuma descrição disponível para este produto.</p>
                 )}
-                <div className="grid gap-2">
+
+                <Separator />
+
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <span className="font-semibold">Descrição:</span>
-                    <p className="text-muted-foreground">{product.description || "Sem descrição"}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Código de Barras</p>
+                    <p className="font-mono">{product.barcode || "N/A"}</p>
                   </div>
                   <div>
-                    <span className="font-semibold">Código de Barras:</span>
-                    <p className="text-muted-foreground">{product.barcode || "N/A"}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Preço de Custo:</span>
-                    <p className="text-muted-foreground">
-                      R$ {product.cost_price?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Preço de Venda:</span>
-                    <p className="text-muted-foreground">
-                      R$ {product.selling_price?.toFixed(2) || "0.00"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Margem de Lucro:</span>
-                    <p className="text-muted-foreground">{product.profit_margin || 0}%</p>
+                    <p className="text-sm font-medium text-muted-foreground">Categoria</p>
+                    <p>{product.category || "Sem categoria"}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Variations Tab */}
           <TabsContent value="variations">
             <Card>
               <CardHeader>
@@ -382,6 +675,115 @@ const ProductDetails = () => {
             </Card>
           </TabsContent>
 
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="space-y-4">
+            {/* Reviews Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Avaliações dos Clientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {reviews.length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-[200px_1fr]">
+                    {/* Rating Summary */}
+                    <div className="text-center">
+                      <div className="text-5xl font-bold text-primary">{averageRating.toFixed(1)}</div>
+                      <div className="flex justify-center mt-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-5 w-5 ${
+                              star <= averageRating
+                                ? "text-yellow-500 fill-yellow-500"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {reviews.length} avaliações
+                      </p>
+                    </div>
+
+                    {/* Rating Distribution */}
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = ratingDistribution[rating as keyof typeof ratingDistribution];
+                        const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                        return (
+                          <div key={rating} className="flex items-center gap-2">
+                            <span className="w-12 text-sm text-muted-foreground">{rating} estrelas</span>
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-yellow-500 rounded-full transition-all"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="w-8 text-sm text-muted-foreground text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Star className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                    <p className="text-muted-foreground">Este produto ainda não possui avaliações</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Individual Reviews */}
+            {reviews.length > 0 && (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <Card key={review.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{review.customer.full_name}</p>
+                            {review.is_verified_purchase && (
+                              <Badge variant="secondary" className="text-xs">Compra verificada</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-4 w-4 ${
+                                    star <= review.rating
+                                      ? "text-yellow-500 fill-yellow-500"
+                                      : "text-muted-foreground"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(review.created_at).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {review.title && (
+                        <p className="font-medium mt-3">{review.title}</p>
+                      )}
+                      {review.comment && (
+                        <p className="text-muted-foreground mt-2">{review.comment}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Sales History Tab */}
           <TabsContent value="sales">
             <Card>
               <CardHeader>
