@@ -713,18 +713,21 @@ const Products = () => {
             const isLowStock = availableStock > 0 && availableStock <= 5;
 
             return (
-              <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden">
+              <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden group">
                 <CardContent className="p-0">
-                  {/* Imagem do produto */}
-                  <div className="relative">
+                  {/* Imagem do produto - clicável */}
+                  <div 
+                    className="relative cursor-pointer"
+                    onClick={() => navigate(`/dashboard/products/${product.id}`)}
+                  >
                     {product.image_url ? (
                       <img
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-56 object-cover"
+                        className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-56 bg-muted flex items-center justify-center">
+                      <div className="w-full h-56 bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors">
                         <Package className="h-16 w-16 text-muted-foreground opacity-30" />
                       </div>
                     )}
@@ -750,9 +753,12 @@ const Products = () => {
                   </div>
 
                   <div className="p-4 space-y-3">
-                    {/* Nome e descrição */}
-                    <div>
-                      <h3 className="font-bold text-lg line-clamp-2 mb-1">{product.name}</h3>
+                    {/* Nome e descrição - clicável */}
+                    <div 
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/dashboard/products/${product.id}`)}
+                    >
+                      <h3 className="font-bold text-lg line-clamp-2 mb-1 hover:text-primary transition-colors">{product.name}</h3>
                       {product.description && (
                         <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                       )}
