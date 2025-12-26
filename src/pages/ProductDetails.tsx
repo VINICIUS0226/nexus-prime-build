@@ -7,11 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProductImageUpload } from "@/components/ProductImageUpload";
 
 interface ProductVariation {
   id: string;
@@ -578,6 +577,13 @@ const ProductDetails = () => {
             </div>
           </div>
         </div>
+
+        {/* Image Upload Section */}
+        <ProductImageUpload 
+          productId={product.id} 
+          images={productImages} 
+          onImagesUpdated={fetchProductImages} 
+        />
 
         {/* Tabs for additional info */}
         <Tabs defaultValue="description" className="space-y-4">
