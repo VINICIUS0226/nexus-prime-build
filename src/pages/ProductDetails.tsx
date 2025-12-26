@@ -11,6 +11,7 @@ import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, Chevro
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
+import { ProductEditForm } from "@/components/ProductEditForm";
 
 interface ProductVariation {
   id: string;
@@ -585,101 +586,21 @@ const ProductDetails = () => {
           onImagesUpdated={fetchProductImages} 
         />
 
+        {/* Product Edit Form */}
+        <ProductEditForm 
+          product={product} 
+          onProductUpdated={fetchProductDetails} 
+        />
+
         {/* Tabs for additional info */}
-        <Tabs defaultValue="description" className="space-y-4">
+        <Tabs defaultValue="reviews" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="description">Descrição</TabsTrigger>
-            <TabsTrigger value="variations">Variações ({product.product_variations.length})</TabsTrigger>
             <TabsTrigger value="reviews">
               Avaliações ({reviews.length})
             </TabsTrigger>
             <TabsTrigger value="sales">Histórico de Vendas</TabsTrigger>
           </TabsList>
 
-          {/* Description Tab */}
-          <TabsContent value="description" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Descrição do Produto</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {product.description ? (
-                  <div className="prose prose-sm max-w-none">
-                    <p className="whitespace-pre-wrap text-foreground">{product.description}</p>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground italic">Nenhuma descrição disponível para este produto.</p>
-                )}
-
-                <Separator />
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Código de Barras</p>
-                    <p className="font-mono">{product.barcode || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Categoria</p>
-                    <p>{product.category || "Sem categoria"}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Variations Tab */}
-          <TabsContent value="variations">
-            <Card>
-              <CardHeader>
-                <CardTitle>Variações de Estoque</CardTitle>
-                <CardDescription>
-                  Estoque disponível por tamanho e cor
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Tamanho</TableHead>
-                      <TableHead>Cor</TableHead>
-                      <TableHead>Estoque</TableHead>
-                      <TableHead>Reservado</TableHead>
-                      <TableHead>Disponível</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {product.product_variations.map((variation) => {
-                      const available = variation.stock_quantity - variation.reserved_quantity;
-                      const status = getStockStatus(variation);
-                      return (
-                        <TableRow key={variation.id}>
-                          <TableCell className="font-mono text-sm">
-                            {variation.sku}
-                          </TableCell>
-                          <TableCell>{variation.size || "-"}</TableCell>
-                          <TableCell>
-                            {variation.color ? (
-                              <Badge variant="outline">{variation.color}</Badge>
-                            ) : (
-                              "-"
-                            )}
-                          </TableCell>
-                          <TableCell>{variation.stock_quantity}</TableCell>
-                          <TableCell>{variation.reserved_quantity}</TableCell>
-                          <TableCell className="font-semibold">{available}</TableCell>
-                          <TableCell>
-                            <Badge variant={status.variant}>{status.label}</Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Reviews Tab */}
           <TabsContent value="reviews" className="space-y-4">
