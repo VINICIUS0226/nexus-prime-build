@@ -23,6 +23,14 @@ interface ProductVariation {
   reserved_quantity: number;
 }
 
+interface ProductImage {
+  id: string;
+  image_url: string;
+  is_primary: boolean;
+  display_order: number;
+  alt_text: string | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -34,6 +42,7 @@ interface Product {
   profit_margin: number | null;
   image_url: string | null;
   product_variations?: ProductVariation[];
+  product_images?: ProductImage[];
 }
 
 interface CartItem {
@@ -118,6 +127,13 @@ const Products = () => {
             color,
             stock_quantity,
             reserved_quantity
+          ),
+          product_images (
+            id,
+            image_url,
+            is_primary,
+            display_order,
+            alt_text
           )
         `)
         .order('created_at', { ascending: false });
@@ -133,6 +149,21 @@ const Products = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Função para obter a imagem principal do produto
+  const getProductImage = (product: Product): string | null => {
+    if (product.product_images && product.product_images.length > 0) {
+      // Primeiro, tentar encontrar a imagem marcada como principal
+      const primaryImage = product.product_images.find(img => img.is_primary);
+      if (primaryImage) return primaryImage.image_url;
+      
+      // Se não houver principal, pegar a primeira por ordem de exibição
+      const sortedImages = [...product.product_images].sort((a, b) => a.display_order - b.display_order);
+      return sortedImages[0].image_url;
+    }
+    // Fallback para image_url do produto (legado)
+    return product.image_url;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -720,9 +751,9 @@ const Products = () => {
                     className="relative cursor-pointer"
                     onClick={() => navigate(`/dashboard/products/${product.id}`)}
                   >
-                    {product.image_url ? (
+                    {getProductImage(product) ? (
                       <img
-                        src={product.image_url}
+                        src={getProductImage(product)!}
                         alt={product.name}
                         className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
