@@ -3,17 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, AlertCircle, PackageCheck, User, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, PackageCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
+import { ProductsFloatingCart, FloatingCartItem } from '@/components/ProductsFloatingCart';
+import { AddToCartDialog } from '@/components/AddToCartDialog';
 
 interface ProductVariation {
   id: string;
@@ -46,21 +48,6 @@ interface Product {
   product_images?: ProductImage[];
 }
 
-interface CartItem {
-  variationId: string;
-  productName: string;
-  variationInfo: string;
-  quantity: number;
-  unitPrice: number;
-  availableStock: number;
-}
-
-interface Customer {
-  id: string;
-  full_name: string;
-  phone: string;
-  email: string | null;
-}
 
 const Products = () => {
   const navigate = useNavigate();
@@ -80,17 +67,12 @@ const Products = () => {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Cart/Selection dialog state
-  const [cartDialogOpen, setCartDialogOpen] = useState(false);
-  const [cartMode, setCartMode] = useState<'sale' | 'reservation'>('sale');
+  // Cart state - carrinho flutuante
+  const [floatingCart, setFloatingCart] = useState<FloatingCartItem[]>([]);
+  
+  // Add to cart dialog state
+  const [addToCartDialogOpen, setAddToCartDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-
-  // Customer selection state
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -266,74 +248,43 @@ const Products = () => {
     navigate(`/dashboard/products/${product.id}`);
   };
 
-  const openCartDialog = (product: Product, mode: 'sale' | 'reservation') => {
+  // Abrir diálogo para adicionar ao carrinho
+  const openAddToCartDialog = (product: Product) => {
     setSelectedProduct(product);
-    setCartMode(mode);
-    setCartItems([]);
-    setSelectedCustomer(null);
-    setCustomerSearch('');
-    setCartDialogOpen(true);
+    setAddToCartDialogOpen(true);
   };
 
-  const searchCustomers = async (search: string) => {
-    if (search.length < 2) {
-      setCustomers([]);
-      return;
-    }
-    
-    setLoadingCustomers(true);
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, full_name, phone, email')
-        .or(`full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
-        .limit(10);
+  // Adicionar itens ao carrinho flutuante
+  const handleAddToFloatingCart = (items: FloatingCartItem[]) => {
+    setFloatingCart(prev => {
+      const newCart = [...prev];
+      
+      items.forEach(item => {
+        const existingIndex = newCart.findIndex(c => c.variationId === item.variationId);
+        if (existingIndex >= 0) {
+          // Atualizar quantidade se já existe
+          const newQty = newCart[existingIndex].quantity + item.quantity;
+          if (newQty <= item.availableStock) {
+            newCart[existingIndex].quantity = newQty;
+          }
+        } else {
+          // Adicionar novo item
+          newCart.push(item);
+        }
+      });
+      
+      return newCart;
+    });
 
-      if (error) throw error;
-      setCustomers(data || []);
-    } catch (error: any) {
-      console.error('Error searching customers:', error);
-    } finally {
-      setLoadingCustomers(false);
-    }
+    toast({
+      title: "Adicionado ao carrinho",
+      description: `${items.length} ${items.length === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho.`,
+    });
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (customerSearch) {
-        searchCustomers(customerSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [customerSearch]);
-
-  const addVariationToCart = (variation: ProductVariation) => {
-    const available = variation.stock_quantity - variation.reserved_quantity;
-    if (available <= 0) return;
-
-    const existingIndex = cartItems.findIndex(item => item.variationId === variation.id);
-    
-    if (existingIndex >= 0) {
-      const newItems = [...cartItems];
-      if (newItems[existingIndex].quantity < available) {
-        newItems[existingIndex].quantity += 1;
-        setCartItems(newItems);
-      }
-    } else {
-      const variationInfo = [variation.size, variation.color].filter(Boolean).join(' / ');
-      setCartItems([...cartItems, {
-        variationId: variation.id,
-        productName: selectedProduct?.name || '',
-        variationInfo,
-        quantity: 1,
-        unitPrice: selectedProduct?.selling_price || 0,
-        availableStock: available
-      }]);
-    }
-  };
-
-  const updateCartItemQuantity = (variationId: string, delta: number) => {
-    setCartItems(cartItems.map(item => {
+  // Atualizar quantidade no carrinho flutuante
+  const updateFloatingCartQuantity = (variationId: string, delta: number) => {
+    setFloatingCart(prev => prev.map(item => {
       if (item.variationId === variationId) {
         const newQty = item.quantity + delta;
         if (newQty < 1 || newQty > item.availableStock) return item;
@@ -343,37 +294,35 @@ const Products = () => {
     }));
   };
 
-  const removeFromCart = (variationId: string) => {
-    setCartItems(cartItems.filter(item => item.variationId !== variationId));
+  // Remover item do carrinho flutuante
+  const removeFromFloatingCart = (variationId: string) => {
+    setFloatingCart(prev => prev.filter(item => item.variationId !== variationId));
   };
 
-  const proceedToCheckout = () => {
-    if (cartItems.length === 0) {
-      toast({
-        title: "Carrinho vazio",
-        description: "Adicione pelo menos uma variação ao carrinho.",
-        variant: "destructive"
-      });
-      return;
-    }
+  // Limpar carrinho flutuante
+  const clearFloatingCart = () => {
+    setFloatingCart([]);
+  };
 
-    const cartData = cartItems.map(item => ({
+  // Ir para checkout
+  const handleFloatingCartCheckout = (mode: 'sale' | 'reservation') => {
+    if (floatingCart.length === 0) return;
+
+    const cartData = floatingCart.map(item => ({
       variationId: item.variationId,
       quantity: item.quantity,
       unitPrice: item.unitPrice
     }));
 
-    const stateData: any = { prefilledCart: cartData };
-    if (selectedCustomer) {
-      stateData.prefilledCustomer = selectedCustomer;
-    }
+    const stateData = { prefilledCart: cartData };
 
-    if (cartMode === 'sale') {
+    if (mode === 'sale') {
       navigate('/dashboard/sales', { state: stateData });
     } else {
       navigate('/dashboard/reservations', { state: stateData });
     }
-    setCartDialogOpen(false);
+    
+    setFloatingCart([]);
   };
 
   const getAvailableStock = (product: Product) => {
@@ -831,26 +780,14 @@ const Products = () => {
                     </div>
 
                     {/* Ações */}
-                    <div className="flex gap-2 pt-2">
+                    <div className="pt-2">
                       <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
+                        className="w-full"
                         disabled={isOutOfStock}
-                        onClick={() => openCartDialog(product, 'sale')}
+                        onClick={() => openAddToCartDialog(product)}
                       >
-                        <ShoppingCart className="h-4 w-4 mr-1" />
-                        Vender
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1"
-                        disabled={isOutOfStock}
-                        onClick={() => openCartDialog(product, 'reservation')}
-                      >
-                        <PackageCheck className="h-4 w-4 mr-1" />
-                        Reservar
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Adicionar ao Carrinho
                       </Button>
                     </div>
                     <div className="flex gap-2">
@@ -914,227 +851,22 @@ const Products = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Cart Selection Dialog */}
-        <Dialog open={cartDialogOpen} onOpenChange={setCartDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {cartMode === 'sale' ? 'Adicionar à Venda' : 'Adicionar à Reserva'}
-              </DialogTitle>
-              <DialogDescription>
-                Selecione as variações e quantidades do produto "{selectedProduct?.name}"
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* Customer Selection */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Cliente (opcional)
-                </Label>
-                {selectedCustomer ? (
-                  <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                    <div>
-                      <p className="font-medium">{selectedCustomer.full_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedCustomer.phone} {selectedCustomer.email && `• ${selectedCustomer.email}`}
-                      </p>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => {
-                        setSelectedCustomer(null);
-                        setCustomerSearch('');
-                        setCustomers([]);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar cliente por nome, telefone ou email..."
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      className="pl-10"
-                    />
-                    {customerSearch.length >= 2 && (
-                      <div className="absolute z-10 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-[200px] overflow-y-auto">
-                        {loadingCustomers ? (
-                          <div className="p-3 text-center text-muted-foreground text-sm">
-                            Buscando...
-                          </div>
-                        ) : customers.length > 0 ? (
-                          customers.map(customer => (
-                            <button
-                              key={customer.id}
-                              type="button"
-                              className="w-full text-left p-3 hover:bg-muted transition-colors border-b last:border-b-0"
-                              onClick={() => {
-                                setSelectedCustomer(customer);
-                                setCustomerSearch('');
-                                setCustomers([]);
-                              }}
-                            >
-                              <p className="font-medium">{customer.full_name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {customer.phone} {customer.email && `• ${customer.email}`}
-                              </p>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="p-3 text-center text-muted-foreground text-sm">
-                            Nenhum cliente encontrado
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+        {/* Add to Cart Dialog */}
+        <AddToCartDialog
+          open={addToCartDialogOpen}
+          onOpenChange={setAddToCartDialogOpen}
+          product={selectedProduct}
+          onAddToCart={handleAddToFloatingCart}
+        />
 
-              {/* Product Info */}
-              <div className="flex gap-4 p-4 bg-muted/50 rounded-lg">
-                {selectedProduct?.image_url ? (
-                  <img 
-                    src={selectedProduct.image_url} 
-                    alt={selectedProduct.name}
-                    className="w-20 h-20 object-cover rounded"
-                  />
-                ) : (
-                  <div className="w-20 h-20 bg-muted rounded flex items-center justify-center">
-                    <Package className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-semibold">{selectedProduct?.name}</h3>
-                  {selectedProduct?.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">{selectedProduct.description}</p>
-                  )}
-                  <p className="text-lg font-bold text-primary mt-1">
-                    R$ {selectedProduct?.selling_price?.toFixed(2) || '0.00'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Available Variations */}
-              <div>
-                <Label className="mb-2 block">Variações Disponíveis</Label>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {selectedProduct?.product_variations?.map(variation => {
-                    const available = variation.stock_quantity - variation.reserved_quantity;
-                    const inCart = cartItems.find(item => item.variationId === variation.id);
-                    
-                    return (
-                      <div 
-                        key={variation.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">
-                            {[variation.size, variation.color].filter(Boolean).join(' / ') || variation.sku}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            SKU: {variation.sku} | Disponível: {available}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={inCart ? "secondary" : "default"}
-                          onClick={() => addVariationToCart(variation)}
-                          disabled={available <= 0}
-                        >
-                          {inCart ? `Adicionado (${inCart.quantity})` : <Plus className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Cart Items */}
-              {cartItems.length > 0 && (
-                <div>
-                  <Label className="mb-2 block">Itens Selecionados</Label>
-                  <div className="space-y-2 border rounded-lg p-3">
-                    {cartItems.map(item => (
-                      <div key={item.variationId} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                        <div>
-                          <p className="text-sm font-medium">{item.productName}</p>
-                          <p className="text-xs text-muted-foreground">{item.variationInfo || 'Variação padrão'}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateCartItemQuantity(item.variationId, -1)}
-                          >
-                            <span className="text-lg">-</span>
-                          </Button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-7 w-7"
-                            onClick={() => updateCartItemQuantity(item.variationId, 1)}
-                          >
-                            <span className="text-lg">+</span>
-                          </Button>
-                          <span className="w-24 text-right text-sm font-medium">
-                            R$ {(item.unitPrice * item.quantity).toFixed(2)}
-                          </span>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-destructive"
-                            onClick={() => removeFromCart(item.variationId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex justify-between items-center pt-2 border-t mt-2">
-                      <span className="font-semibold">Total:</span>
-                      <span className="font-bold text-lg text-primary">
-                        R$ {cartItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCartDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={proceedToCheckout}
-                disabled={cartItems.length === 0}
-                className={cartMode === 'sale' ? 'bg-primary' : 'bg-success text-success-foreground hover:bg-success/90'}
-              >
-                {cartMode === 'sale' ? (
-                  <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Ir para Venda
-                  </>
-                ) : (
-                  <>
-                    <PackageCheck className="h-4 w-4 mr-2" />
-                    Ir para Reserva
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Floating Cart */}
+        <ProductsFloatingCart
+          items={floatingCart}
+          onUpdateQuantity={updateFloatingCartQuantity}
+          onRemoveItem={removeFromFloatingCart}
+          onClearCart={clearFloatingCart}
+          onCheckout={handleFloatingCartCheckout}
+        />
       </div>
     </DashboardLayout>
   );
