@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ProductCardGallery } from '@/components/ProductCardGallery';
 
 interface ProductVariation {
   id: string;
@@ -746,42 +747,32 @@ const Products = () => {
             return (
               <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden group">
                 <CardContent className="p-0">
-                  {/* Imagem do produto - clicável */}
-                  <div 
-                    className="relative cursor-pointer"
+                  {/* Galeria de imagens do produto */}
+                  <ProductCardGallery
+                    images={product.product_images || []}
+                    fallbackUrl={product.image_url}
+                    productName={product.name}
                     onClick={() => navigate(`/dashboard/products/${product.id}`)}
                   >
-                    {getProductImage(product) ? (
-                      <img
-                        src={getProductImage(product)!}
-                        alt={product.name}
-                        className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-56 bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors">
-                        <Package className="h-16 w-16 text-muted-foreground opacity-30" />
-                      </div>
-                    )}
-                    
                     {/* Badge de status de estoque */}
                     {isOutOfStock && (
-                      <Badge variant="destructive" className="absolute top-2 right-2">
+                      <Badge variant="destructive" className="absolute top-2 left-2">
                         Esgotado
                       </Badge>
                     )}
-                    {isLowStock && (
-                      <Badge variant="default" className="absolute top-2 right-2 bg-accent text-accent-foreground">
+                    {isLowStock && !isOutOfStock && (
+                      <Badge variant="default" className="absolute top-2 left-2 bg-accent text-accent-foreground">
                         Estoque baixo
                       </Badge>
                     )}
                     
                     {/* Categoria badge */}
                     {product.category && (
-                      <Badge variant="secondary" className="absolute top-2 left-2">
+                      <Badge variant="secondary" className="absolute bottom-8 left-2">
                         {product.category}
                       </Badge>
                     )}
-                  </div>
+                  </ProductCardGallery>
 
                   <div className="p-4 space-y-3">
                     {/* Nome e descrição - clicável */}
