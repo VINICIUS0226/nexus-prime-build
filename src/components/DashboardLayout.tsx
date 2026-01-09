@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { Button } from '@/components/ui/button';
+import { DashboardHeader } from '@/components/DashboardHeader';
 import { 
   LayoutDashboard, 
   Package, 
@@ -134,8 +135,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       </aside>
 
       {/* Main content */}
-      <main className="pl-64">
-        <div className="p-8">
+      <main className="pl-64 flex flex-col min-h-screen">
+        <DashboardHeader />
+        <div className="p-8 flex-1">
           {children}
         </div>
       </main>

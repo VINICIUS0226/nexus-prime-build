@@ -14,8 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
-import { ProductsFloatingCart, FloatingCartItem } from '@/components/ProductsFloatingCart';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
+import { useCart, CartItem } from '@/contexts/CartContext';
 
 interface ProductVariation {
   id: string;
@@ -61,14 +61,12 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { addItems } = useCart();
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Cart state - carrinho flutuante
-  const [floatingCart, setFloatingCart] = useState<FloatingCartItem[]>([]);
   
   // Add to cart dialog state
   const [addToCartDialogOpen, setAddToCartDialogOpen] = useState(false);
@@ -254,75 +252,13 @@ const Products = () => {
     setAddToCartDialogOpen(true);
   };
 
-  // Adicionar itens ao carrinho flutuante
-  const handleAddToFloatingCart = (items: FloatingCartItem[]) => {
-    setFloatingCart(prev => {
-      const newCart = [...prev];
-      
-      items.forEach(item => {
-        const existingIndex = newCart.findIndex(c => c.variationId === item.variationId);
-        if (existingIndex >= 0) {
-          // Atualizar quantidade se já existe
-          const newQty = newCart[existingIndex].quantity + item.quantity;
-          if (newQty <= item.availableStock) {
-            newCart[existingIndex].quantity = newQty;
-          }
-        } else {
-          // Adicionar novo item
-          newCart.push(item);
-        }
-      });
-      
-      return newCart;
-    });
-
+  // Adicionar itens ao carrinho global
+  const handleAddToCart = (items: CartItem[]) => {
+    addItems(items);
     toast({
       title: "Adicionado ao carrinho",
       description: `${items.length} ${items.length === 1 ? 'item adicionado' : 'itens adicionados'} ao carrinho.`,
     });
-  };
-
-  // Atualizar quantidade no carrinho flutuante
-  const updateFloatingCartQuantity = (variationId: string, delta: number) => {
-    setFloatingCart(prev => prev.map(item => {
-      if (item.variationId === variationId) {
-        const newQty = item.quantity + delta;
-        if (newQty < 1 || newQty > item.availableStock) return item;
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-
-  // Remover item do carrinho flutuante
-  const removeFromFloatingCart = (variationId: string) => {
-    setFloatingCart(prev => prev.filter(item => item.variationId !== variationId));
-  };
-
-  // Limpar carrinho flutuante
-  const clearFloatingCart = () => {
-    setFloatingCart([]);
-  };
-
-  // Ir para checkout
-  const handleFloatingCartCheckout = (mode: 'sale' | 'reservation') => {
-    if (floatingCart.length === 0) return;
-
-    const cartData = floatingCart.map(item => ({
-      variationId: item.variationId,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice
-    }));
-
-    const stateData = { prefilledCart: cartData };
-
-    if (mode === 'sale') {
-      navigate('/dashboard/sales', { state: stateData });
-    } else {
-      navigate('/dashboard/reservations', { state: stateData });
-    }
-    
-    setFloatingCart([]);
   };
 
   const getAvailableStock = (product: Product) => {
@@ -865,16 +801,7 @@ const Products = () => {
           open={addToCartDialogOpen}
           onOpenChange={setAddToCartDialogOpen}
           product={selectedProduct}
-          onAddToCart={handleAddToFloatingCart}
-        />
-
-        {/* Floating Cart */}
-        <ProductsFloatingCart
-          items={floatingCart}
-          onUpdateQuantity={updateFloatingCartQuantity}
-          onRemoveItem={removeFromFloatingCart}
-          onClearCart={clearFloatingCart}
-          onCheckout={handleFloatingCartCheckout}
+          onAddToCart={handleAddToCart}
         />
       </div>
     </DashboardLayout>
