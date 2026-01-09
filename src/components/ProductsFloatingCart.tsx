@@ -38,27 +38,28 @@ export const ProductsFloatingCart = ({
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
 
-  if (items.length === 0) {
-    return null;
-  }
-
   return (
     <>
-      {/* Botão flutuante do carrinho */}
+      {/* Botão flutuante do carrinho - sempre visível */}
       <div className="fixed bottom-6 right-6 z-50">
         {!isExpanded && (
           <Button
             size="lg"
-            className="rounded-full h-16 w-16 shadow-lg animate-scale-in"
+            className={cn(
+              "rounded-full h-16 w-16 shadow-lg transition-all",
+              totalItems > 0 ? "animate-pulse bg-primary hover:bg-primary/90" : "bg-muted hover:bg-muted/90 text-muted-foreground"
+            )}
             onClick={() => setIsExpanded(true)}
           >
             <ShoppingCart className="h-6 w-6" />
-            <Badge 
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center"
-              variant="destructive"
-            >
-              {totalItems}
-            </Badge>
+            {totalItems > 0 && (
+              <Badge 
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center"
+                variant="destructive"
+              >
+                {totalItems}
+              </Badge>
+            )}
           </Button>
         )}
       </div>
@@ -72,17 +73,21 @@ export const ProductsFloatingCart = ({
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingCart className="h-5 w-5" />
                   Carrinho
-                  <Badge variant="secondary">{totalItems} itens</Badge>
+                  {totalItems > 0 && (
+                    <Badge variant="secondary">{totalItems} itens</Badge>
+                  )}
                 </CardTitle>
                 <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={onClearCart}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    Limpar
-                  </Button>
+                  {items.length > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={onClearCart}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      Limpar
+                    </Button>
+                  )}
                   <Button 
                     variant="ghost" 
                     size="icon"
@@ -95,105 +100,117 @@ export const ProductsFloatingCart = ({
             </CardHeader>
             
             <CardContent className="p-0">
-              <ScrollArea className="h-64 px-4">
-                <div className="space-y-3 py-2">
-                  {items.map((item) => (
-                    <div 
-                      key={item.variationId}
-                      className="flex gap-3 p-2 rounded-lg bg-muted/50"
-                    >
-                      {/* Imagem do produto */}
-                      {item.imageUrl ? (
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.productName}
-                          className="w-12 h-12 rounded object-cover"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                          <ShoppingBag className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-
-                      {/* Info do produto */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm line-clamp-1">{item.productName}</p>
-                        {item.variationInfo && (
-                          <p className="text-xs text-muted-foreground">{item.variationInfo}</p>
-                        )}
-                        <p className="text-sm font-semibold text-primary">
-                          R$ {(item.unitPrice * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-
-                      {/* Controles de quantidade */}
-                      <div className="flex flex-col items-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => onRemoveItem(item.variationId)}
+              {items.length === 0 ? (
+                <div className="p-8 text-center">
+                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-muted-foreground font-medium mb-1">Carrinho vazio</p>
+                  <p className="text-sm text-muted-foreground">
+                    Clique em "Adicionar ao Carrinho" nos produtos para começar
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <ScrollArea className="h-64 px-4">
+                    <div className="space-y-3 py-2">
+                      {items.map((item) => (
+                        <div 
+                          key={item.variationId}
+                          className="flex gap-3 p-2 rounded-lg bg-muted/50"
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => onUpdateQuantity(item.variationId, -1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => onUpdateQuantity(item.variationId, 1)}
-                            disabled={item.quantity >= item.availableStock}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          {/* Imagem do produto */}
+                          {item.imageUrl ? (
+                            <img 
+                              src={item.imageUrl} 
+                              alt={item.productName}
+                              className="w-12 h-12 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                              <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+
+                          {/* Info do produto */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm line-clamp-1">{item.productName}</p>
+                            {item.variationInfo && (
+                              <p className="text-xs text-muted-foreground">{item.variationInfo}</p>
+                            )}
+                            <p className="text-sm font-semibold text-primary">
+                              R$ {(item.unitPrice * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
+
+                          {/* Controles de quantidade */}
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={() => onRemoveItem(item.variationId)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => onUpdateQuantity(item.variationId, -1)}
+                                disabled={item.quantity <= 1}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm font-medium">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => onUpdateQuantity(item.variationId, 1)}
+                                disabled={item.quantity >= item.availableStock}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                  </ScrollArea>
 
-              <Separator />
+                  <Separator />
 
-              {/* Footer com total e ações */}
-              <div className="p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Total:</span>
-                  <span className="text-2xl font-bold text-primary">
-                    R$ {totalValue.toFixed(2)}
-                  </span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    className="flex-1"
-                    onClick={() => onCheckout('sale')}
-                  >
-                    <ShoppingBag className="h-4 w-4 mr-2" />
-                    Vender
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => onCheckout('reservation')}
-                  >
-                    <PackageCheck className="h-4 w-4 mr-2" />
-                    Reservar
-                  </Button>
-                </div>
-              </div>
+                  {/* Footer com total e ações */}
+                  <div className="p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total:</span>
+                      <span className="text-2xl font-bold text-primary">
+                        R$ {totalValue.toFixed(2)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        className="flex-1"
+                        onClick={() => onCheckout('sale')}
+                      >
+                        <ShoppingBag className="h-4 w-4 mr-2" />
+                        Vender
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => onCheckout('reservation')}
+                      >
+                        <PackageCheck className="h-4 w-4 mr-2" />
+                        Reservar
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
