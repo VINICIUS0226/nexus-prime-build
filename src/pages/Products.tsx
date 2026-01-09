@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Package, Filter, ShoppingCart, PackageCheck } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Filter, ShoppingCart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -694,8 +694,8 @@ const Products = () => {
             const isLowStock = availableStock > 0 && availableStock <= 5;
 
             return (
-              <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden group">
-                <CardContent className="p-0">
+              <Card key={product.id} className="hover:shadow-elegant transition-all hover:-translate-y-1 overflow-hidden group flex flex-col h-full">
+                <CardContent className="p-0 flex flex-col h-full">
                   {/* Galeria de imagens do produto */}
                   <ProductCardGallery
                     images={product.product_images || []}
@@ -723,90 +723,99 @@ const Products = () => {
                     )}
                   </ProductCardGallery>
 
-                  <div className="p-4 space-y-3">
+                  <div className="p-4 flex flex-col flex-1">
                     {/* Nome e descrição - clicável */}
                     <div 
-                      className="cursor-pointer"
+                      className="cursor-pointer mb-3"
                       onClick={() => navigate(`/dashboard/products/${product.id}`)}
                     >
-                      <h3 className="font-bold text-lg line-clamp-2 mb-1 hover:text-primary transition-colors">{product.name}</h3>
-                      {product.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                      <h3 className="font-bold text-lg line-clamp-2 h-14 hover:text-primary transition-colors">{product.name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 h-10">
+                        {product.description || '\u00A0'}
+                      </p>
+                    </div>
+
+                    {/* Variações disponíveis - altura fixa */}
+                    <div className="h-16 mb-3">
+                      {product.product_variations && product.product_variations.length > 0 && (
+                        <div className="space-y-1">
+                          {/* Tamanhos */}
+                          {product.product_variations.some(v => v.size) && (
+                            <div className="flex flex-wrap gap-1 items-center">
+                              <span className="text-xs text-muted-foreground w-16 shrink-0">Tamanhos:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).slice(0, 4).map(size => (
+                                  <Badge key={size} variant="outline" className="text-xs px-1.5 py-0">
+                                    {size}
+                                  </Badge>
+                                ))}
+                                {Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).length > 4 && (
+                                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                    +{Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).length - 4}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Cores */}
+                          {product.product_variations.some(v => v.color) && (
+                            <div className="flex flex-wrap gap-1 items-center">
+                              <span className="text-xs text-muted-foreground w-16 shrink-0">Cores:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).slice(0, 4).map(color => (
+                                  <Badge key={color} variant="outline" className="text-xs px-1.5 py-0">
+                                    {color}
+                                  </Badge>
+                                ))}
+                                {Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).length > 4 && (
+                                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                    +{Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).length - 4}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
 
-                    {/* Variações disponíveis */}
-                    {product.product_variations && product.product_variations.length > 0 && (
-                      <div className="space-y-2">
-                        {/* Tamanhos */}
-                        {product.product_variations.some(v => v.size) && (
-                          <div className="flex flex-wrap gap-1">
-                            <span className="text-xs text-muted-foreground">Tamanhos:</span>
-                            {Array.from(new Set(product.product_variations.map(v => v.size).filter(Boolean))).map(size => (
-                              <Badge key={size} variant="outline" className="text-xs">
-                                {size}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {/* Cores */}
-                        {product.product_variations.some(v => v.color) && (
-                          <div className="flex flex-wrap gap-1">
-                            <span className="text-xs text-muted-foreground">Cores:</span>
-                            {Array.from(new Set(product.product_variations.map(v => v.color).filter(Boolean))).map(color => (
-                              <Badge key={color} variant="outline" className="text-xs">
-                                {color}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Preço e estoque */}
-                    <div className="flex items-end justify-between">
-                      <div>
-                        {product.selling_price && (
+                    {/* Preço e estoque - empurrar para baixo */}
+                    <div className="mt-auto">
+                      <div className="flex items-end justify-between mb-3">
+                        <div>
                           <p className="text-2xl font-bold text-primary">
-                            R$ {product.selling_price.toFixed(2)}
+                            {product.selling_price ? `R$ ${product.selling_price.toFixed(2)}` : 'Sem preço'}
                           </p>
-                        )}
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Package className="h-3 w-3" />
-                          {availableStock}/{totalStock} disponíveis
-                        </p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Package className="h-3 w-3" />
+                            {availableStock}/{totalStock} disponíveis
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteDialog(product);
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </div>
 
-                    {/* Ações */}
-                    <div className="pt-2">
+                      {/* Botão de adicionar ao carrinho */}
                       <Button 
-                        className="w-full"
+                        className="w-full h-10"
                         disabled={isOutOfStock}
-                        onClick={() => openAddToCartDialog(product)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAddToCartDialog(product);
+                        }}
                       >
                         <ShoppingCart className="h-4 w-4 mr-2" />
                         Adicionar ao Carrinho
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleEdit(product)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteDialog(product)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
