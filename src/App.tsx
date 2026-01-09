@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeInitializer } from "@/components/ThemeInitializer";
 import Login from "./pages/Login";
@@ -31,23 +32,25 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/dashboard/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/dashboard/products/:id" element={<ProtectedRoute><ProductDetails /></ProtectedRoute>} />
-            <Route path="/dashboard/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-            <Route path="/dashboard/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
-            <Route path="/dashboard/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-            <Route path="/dashboard/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
-            <Route path="/dashboard/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-            <Route path="/dashboard/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-            <Route path="/dashboard/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <CartProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+              <Route path="/dashboard/products/:id" element={<ProtectedRoute><ProductDetails /></ProtectedRoute>} />
+              <Route path="/dashboard/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+              <Route path="/dashboard/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
+              <Route path="/dashboard/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+              <Route path="/dashboard/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
+              <Route path="/dashboard/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+              <Route path="/dashboard/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+              <Route path="/dashboard/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
