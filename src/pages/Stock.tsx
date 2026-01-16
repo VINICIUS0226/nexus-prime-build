@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Package, AlertTriangle, Upload, Edit, Filter, Save } from 'lucide-react';
+import { Search, Package, AlertTriangle, Upload, Edit, Filter, Save, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,11 @@ interface ProductVariation {
   };
 }
 
+interface Product {
+  id: string;
+  name: string;
+}
+
 const editStockSchema = z.object({
   stock_quantity: z.number().min(0, 'Quantidade não pode ser negativa').int('Deve ser um número inteiro'),
   min_stock_level: z.number().min(0, 'Nível mínimo não pode ser negativo').int('Deve ser um número inteiro'),
@@ -41,19 +46,37 @@ const editStockSchema = z.object({
   selling_price: z.number().min(0, 'Preço de venda não pode ser negativo'),
 });
 
+const addStockSchema = z.object({
+  product_id: z.string().optional(),
+  new_product_name: z.string().optional(),
+  sku: z.string().min(1, 'SKU é obrigatório'),
+  color: z.string().optional(),
+  size: z.string().optional(),
+  stock_quantity: z.number().min(0, 'Quantidade não pode ser negativa').int('Deve ser um número inteiro'),
+  min_stock_level: z.number().min(0, 'Nível mínimo não pode ser negativo').int('Deve ser um número inteiro'),
+  cost_price: z.number().min(0, 'Preço de custo não pode ser negativo'),
+  selling_price: z.number().min(0, 'Preço de venda não pode ser negativo'),
+}).refine((data) => data.product_id || data.new_product_name, {
+  message: "Selecione um produto existente ou informe um nome para novo produto",
+  path: ["product_id"],
+});
+
 const Stock = () => {
   const [variations, setVariations] = useState<ProductVariation[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [colorFilter, setColorFilter] = useState('all');
   const [sizeFilter, setSizeFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingVariation, setEditingVariation] = useState<ProductVariation | null>(null);
+  const [isNewProduct, setIsNewProduct] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof editStockSchema>>({
@@ -66,9 +89,39 @@ const Stock = () => {
     },
   });
 
+  const addForm = useForm<z.infer<typeof addStockSchema>>({
+    resolver: zodResolver(addStockSchema),
+    defaultValues: {
+      product_id: '',
+      new_product_name: '',
+      sku: '',
+      color: '',
+      size: '',
+      stock_quantity: 0,
+      min_stock_level: 5,
+      cost_price: 0,
+      selling_price: 0,
+    },
+  });
+
   useEffect(() => {
     fetchVariations();
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar produtos:', error.message);
+    }
+  };
 
   const fetchVariations = async () => {
     try {
@@ -268,6 +321,88 @@ const Stock = () => {
     }
   };
 
+  const onSubmitAdd = async (values: z.infer<typeof addStockSchema>) => {
+    try {
+      setLoading(true);
+
+      let productId = values.product_id;
+
+      // Se é um novo produto, criar primeiro
+      if (isNewProduct && values.new_product_name) {
+        const { data: newProduct, error: productError } = await supabase
+          .from('products')
+          .insert({
+            name: values.new_product_name,
+            cost_price: values.cost_price,
+            selling_price: values.selling_price,
+          })
+          .select()
+          .single();
+
+        if (productError) throw productError;
+        productId = newProduct.id;
+      } else if (productId) {
+        // Atualizar preços do produto existente
+        await supabase
+          .from('products')
+          .update({
+            cost_price: values.cost_price,
+            selling_price: values.selling_price,
+          })
+          .eq('id', productId);
+      }
+
+      if (!productId) {
+        throw new Error('Produto não selecionado');
+      }
+
+      // Verificar se já existe variação com mesmo SKU
+      const { data: existingVariation } = await supabase
+        .from('product_variations')
+        .select('id')
+        .eq('sku', values.sku)
+        .maybeSingle();
+
+      if (existingVariation) {
+        throw new Error('Já existe uma variação com este SKU');
+      }
+
+      // Criar variação do produto
+      const { error: variationError } = await supabase
+        .from('product_variations')
+        .insert({
+          product_id: productId,
+          sku: values.sku,
+          color: values.color || null,
+          size: values.size || null,
+          stock_quantity: values.stock_quantity,
+          reserved_quantity: 0,
+          min_stock_level: values.min_stock_level,
+        });
+
+      if (variationError) throw variationError;
+
+      await fetchVariations();
+      await fetchProducts();
+      setAddDialogOpen(false);
+      addForm.reset();
+      setIsNewProduct(false);
+
+      toast({
+        title: "Estoque adicionado",
+        description: "O item foi cadastrado com sucesso",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao adicionar estoque",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredVariations = variations.filter(variation => {
     const matchesSearch = variation.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       variation.products?.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -346,38 +481,51 @@ const Stock = () => {
             <h1 className="text-4xl font-bold mb-2">Estoque</h1>
             <p className="text-muted-foreground">Gerencie suas variações de produtos</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary shadow-elegant hover:bg-primary/90">
-                <Upload className="mr-2 h-4 w-4" />
-                Importar XML
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Importar Nota Fiscal (XML)</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="xml">Arquivo XML da NF-e</Label>
-                  <Input
-                    id="xml"
-                    type="file"
-                    accept=".xml"
-                    onChange={(e) => setXmlFile(e.target.files?.[0] || null)}
-                  />
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                addForm.reset();
+                setIsNewProduct(false);
+                setAddDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Manual
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary shadow-elegant hover:bg-primary/90">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar XML
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Importar Nota Fiscal (XML)</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="xml">Arquivo XML da NF-e</Label>
+                    <Input
+                      id="xml"
+                      type="file"
+                      accept=".xml"
+                      onChange={(e) => setXmlFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleXmlUpload} className="bg-primary hover:bg-primary/90">
+                      Importar
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleXmlUpload} className="bg-primary hover:bg-primary/90">
-                    Importar
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <Card>
@@ -689,6 +837,220 @@ const Stock = () => {
                 </Form>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog para adicionar estoque manualmente */}
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Adicionar Estoque Manualmente</DialogTitle>
+            </DialogHeader>
+            <Form {...addForm}>
+              <form onSubmit={addForm.handleSubmit(onSubmitAdd)} className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Button
+                      type="button"
+                      variant={!isNewProduct ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsNewProduct(false)}
+                    >
+                      Produto Existente
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isNewProduct ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsNewProduct(true)}
+                    >
+                      Novo Produto
+                    </Button>
+                  </div>
+
+                  {!isNewProduct ? (
+                    <FormField
+                      control={addForm.control}
+                      name="product_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Produto</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione um produto" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {products.map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
+                                  {product.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={addForm.control}
+                      name="new_product_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Novo Produto</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Camiseta Básica" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+
+                <FormField
+                  control={addForm.control}
+                  name="sku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SKU</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex: CAM-001-P-AZ" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={addForm.control}
+                    name="color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cor (opcional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Azul" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={addForm.control}
+                    name="size"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tamanho (opcional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: P, M, G, 38, 40" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={addForm.control}
+                    name="stock_quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantidade em Estoque</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={addForm.control}
+                    name="min_stock_level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estoque Mínimo</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="5"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={addForm.control}
+                    name="cost_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço de Custo</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={addForm.control}
+                    name="selling_price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço de Venda</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAddDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
 
