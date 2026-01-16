@@ -403,6 +403,14 @@ const Stock = () => {
     }
   };
 
+  const isLowStock = (variation: ProductVariation) => {
+    return variation.stock_quantity <= variation.min_stock_level;
+  };
+
+  const availableStock = (variation: ProductVariation) => {
+    return variation.stock_quantity - variation.reserved_quantity;
+  };
+
   const filteredVariations = variations.filter(variation => {
     const matchesSearch = variation.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       variation.products?.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -463,14 +471,6 @@ const Stock = () => {
     }
     
     return pages;
-  };
-
-  const isLowStock = (variation: ProductVariation) => {
-    return variation.stock_quantity <= variation.min_stock_level;
-  };
-
-  const availableStock = (variation: ProductVariation) => {
-    return variation.stock_quantity - variation.reserved_quantity;
   };
 
   return (
