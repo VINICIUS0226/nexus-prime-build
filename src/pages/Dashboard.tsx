@@ -415,29 +415,6 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Quick Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Sistema PQUENINOS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Use o menu lateral para navegar entre as diferentes seções do sistema:
-            </p>
-            <ul className="mt-4 space-y-2 list-disc list-inside text-sm">
-              <li><strong>Produtos:</strong> Cadastre e gerencie seus produtos</li>
-              <li><strong>Estoque:</strong> Controle quantidades e alertas</li>
-              <li><strong>Clientes:</strong> Mantenha o cadastro dos seus clientes</li>
-              <li><strong>Reservas:</strong> Crie cestas virtuais para seus clientes</li>
-              <li><strong>Vendas:</strong> Registre e acompanhe suas vendas</li>
-              <li><strong>Relatórios:</strong> Visualize relatórios de desempenho</li>
-            </ul>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   );
