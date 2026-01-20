@@ -807,12 +807,12 @@ const Reservations = () => {
 
         {/* Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Detalhes da Reserva</DialogTitle>
             </DialogHeader>
             {selectedReservation && (
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Cliente</Label>
@@ -845,10 +845,12 @@ const Reservations = () => {
                 )}
 
                 <div>
-                  <Label className="text-muted-foreground mb-2 block">Itens da Reserva</Label>
-                  <div className="border rounded-lg overflow-hidden">
+                  <Label className="text-muted-foreground mb-2 block">
+                    Itens da Reserva ({selectedReservation.reservation_items?.length || 0})
+                  </Label>
+                  <div className="border rounded-lg overflow-hidden max-h-[250px] overflow-y-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           <TableHead>Produto</TableHead>
                           <TableHead>Variação</TableHead>
@@ -869,9 +871,9 @@ const Reservations = () => {
                               {(item.variation as any)?.color && `Cor: ${(item.variation as any).color}`}
                             </TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">R$ {item.unit_price.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
                             <TableCell className="text-right font-medium">
-                              R$ {(item.unit_price * item.quantity).toFixed(2)}
+                              {formatCurrency(item.unit_price * item.quantity)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -880,10 +882,10 @@ const Reservations = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-2 border-t">
+                <div className="flex justify-between items-center pt-2 border-t flex-shrink-0">
                   <span className="text-lg font-semibold">Total da Reserva:</span>
                   <span className="text-2xl font-bold text-primary">
-                    R$ {getReservationTotal(selectedReservation).toFixed(2)}
+                    {formatCurrency(getReservationTotal(selectedReservation))}
                   </span>
                 </div>
 
