@@ -131,6 +131,17 @@ const formatPhone = (phone: string): string => {
   return phone;
 };
 
+// Utility to sanitize and validate numeric inputs
+const sanitizeNumericInput = (value: string): number => {
+  // Remove leading zeros except for decimals (e.g., "0.5")
+  let cleaned = value.replace(/^0+(?=\d)/, '');
+  // Replace comma with dot for decimal
+  cleaned = cleaned.replace(',', '.');
+  // Parse and ensure non-negative
+  const num = parseFloat(cleaned);
+  return isNaN(num) || num < 0 ? 0 : Math.round(num * 100) / 100;
+};
+
 const Sales = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -152,6 +163,7 @@ const Sales = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form state
   const [saleMode, setSaleMode] = useState<'direct' | 'reservation'>('direct');
@@ -386,12 +398,19 @@ const Sales = () => {
   const getTotalPayments = () => payments.reduce((sum, p) => sum + p.amount, 0);
 
   const handleCreateSale = async () => {
+    // Prevent double submissions
+    if (isSubmitting) return;
+
     if (!selectedCustomer) {
       toast({ title: "Selecione um cliente", variant: "destructive" });
       return;
     }
     if (cart.length === 0) {
       toast({ title: "Carrinho vazio", variant: "destructive" });
+      return;
+    }
+    if (payments.length === 0) {
+      toast({ title: "Adicione formas de pagamento", variant: "destructive" });
       return;
     }
     
@@ -407,7 +426,36 @@ const Sales = () => {
       return;
     }
 
+    // Set submitting state to prevent multiple clicks
+    setIsSubmitting(true);
+
     try {
+      // For reservation sales, verify reservation is still active before proceeding
+      if (saleMode === 'reservation' && selectedReservation) {
+        const { data: reservationCheck, error: checkError } = await supabase
+          .from('reservations')
+          .select('status')
+          .eq('id', selectedReservation)
+          .single();
+        
+        if (checkError || !reservationCheck) {
+          throw new Error('Reserva não encontrada');
+        }
+        
+        if (reservationCheck.status !== 'active') {
+          toast({ 
+            title: "Reserva já processada", 
+            description: "Esta reserva já foi concluída ou cancelada.",
+            variant: "destructive" 
+          });
+          setIsSubmitting(false);
+          setDialogOpen(false);
+          resetForm();
+          fetchData();
+          return;
+        }
+      }
+
       // Create sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
@@ -485,6 +533,8 @@ const Sales = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -804,21 +854,23 @@ const Sales = () => {
                     <div className="space-y-2">
                       <Label>Frete (R$)</Label>
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={freightValue}
-                        onChange={(e) => setFreightValue(parseFloat(e.target.value) || 0)}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={freightValue || ''}
+                        onChange={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
+                        onBlur={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Desconto (R$)</Label>
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={discount}
-                        onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={discount || ''}
+                        onChange={(e) => setDiscount(sanitizeNumericInput(e.target.value))}
+                        onBlur={(e) => setDiscount(sanitizeNumericInput(e.target.value))}
                       />
                     </div>
                   </div>
@@ -890,11 +942,12 @@ const Sales = () => {
                               </SelectContent>
                             </Select>
                             <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={payment.amount}
-                              onChange={(e) => updatePayment(index, 'amount', parseFloat(e.target.value) || 0)}
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0,00"
+                              value={payment.amount || ''}
+                              onChange={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
+                              onBlur={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
                               className="flex-1"
                             />
                             <Button
@@ -940,10 +993,19 @@ const Sales = () => {
                     <Button 
                       className="flex-1 bg-success text-success-foreground hover:bg-success/90"
                       onClick={handleCreateSale}
-                      disabled={!selectedCustomer || cart.length === 0 || payments.length === 0}
+                      disabled={!selectedCustomer || cart.length === 0 || payments.length === 0 || isSubmitting}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Finalizar Venda
+                      {isSubmitting ? (
+                        <>
+                          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Processando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Finalizar Venda
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
