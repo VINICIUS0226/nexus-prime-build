@@ -119,6 +119,18 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   bank_slip: { label: 'Boleto', icon: Receipt }
 };
 
+// Format phone number with mask (XX) XXXXX-XXXX
+const formatPhone = (phone: string): string => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  } else if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+
 const Sales = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -601,7 +613,7 @@ const Sales = () => {
                 Nova Venda
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
               </DialogHeader>
@@ -1024,22 +1036,22 @@ const Sales = () => {
         {/* Sale Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
           <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <div className="flex items-center justify-between">
-                <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
-                <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
-                  <Printer className="h-4 w-4" />
-                  Imprimir Recibo
-                </Button>
-              </div>
+            <DialogHeader className="pr-12">
+              <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
             </DialogHeader>
             {selectedSale && (
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="flex justify-end">
+                  <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
+                    <Printer className="h-4 w-4" />
+                    Imprimir Recibo
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Cliente</Label>
                     <p className="font-medium">{selectedSale.customer?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{selectedSale.customer?.phone}</p>
+                    <p className="text-sm text-muted-foreground">{formatPhone(selectedSale.customer?.phone || '')}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Data</Label>
