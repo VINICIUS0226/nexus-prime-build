@@ -74,6 +74,14 @@ interface CartItem {
   unit_price: number;
 }
 
+// Format currency consistently
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
 const Reservations = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -268,28 +276,35 @@ const Reservations = () => {
 
       if (reservationError) throw reservationError;
 
-      // Create reservation items and update reserved_quantity
-      for (const item of cart) {
+      // Create reservation items in batches to avoid issues with many items
+      const BATCH_SIZE = 20;
+      const itemsToInsert = cart.map(item => ({
+        reservation_id: reservation.id,
+        variation_id: item.variation.id,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+      }));
+
+      for (let i = 0; i < itemsToInsert.length; i += BATCH_SIZE) {
+        const batch = itemsToInsert.slice(i, i + BATCH_SIZE);
         const { error: itemError } = await supabase
           .from('reservation_items')
-          .insert({
-            reservation_id: reservation.id,
-            variation_id: item.variation.id,
-            quantity: item.quantity,
-            unit_price: item.unit_price
-          });
+          .insert(batch);
 
         if (itemError) throw itemError;
+      }
 
-        // Update reserved_quantity on variation
-        const { error: updateError } = await supabase
-          .from('product_variations')
-          .update({ 
-            reserved_quantity: item.variation.reserved_quantity + item.quantity 
-          })
-          .eq('id', item.variation.id);
-
-        if (updateError) throw updateError;
+      // Update reserved_quantity for all items in batches
+      for (let i = 0; i < cart.length; i += BATCH_SIZE) {
+        const batch = cart.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(item => 
+          supabase
+            .from('product_variations')
+            .update({ 
+              reserved_quantity: item.variation.reserved_quantity + item.quantity 
+            })
+            .eq('id', item.variation.id)
+        ));
       }
 
       toast({
@@ -466,7 +481,7 @@ const Reservations = () => {
                 Nova Reserva
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Criar Nova Reserva</DialogTitle>
               </DialogHeader>
@@ -526,7 +541,7 @@ const Reservations = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-sm">
-                                R$ {variation.product?.selling_price?.toFixed(2) || '0.00'}
+                                {formatCurrency(variation.product?.selling_price || 0)}
                               </span>
                               <Button
                                 size="sm"
@@ -576,10 +591,13 @@ const Reservations = () => {
                     <Textarea
                       id="notes"
                       value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      onChange={(e) => setNotes(e.target.value.slice(0, 500))}
                       placeholder="Observações sobre a reserva..."
                       rows={2}
+                      maxLength={500}
+                      className="resize-none max-h-20"
                     />
+                    <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
                   </div>
 
                   {/* Cart */}
@@ -628,7 +646,7 @@ const Reservations = () => {
                                 <Plus className="h-3 w-3" />
                               </Button>
                               <span className="w-20 text-right text-sm font-medium">
-                                R$ {(item.unit_price * item.quantity).toFixed(2)}
+                                {formatCurrency(item.unit_price * item.quantity)}
                               </span>
                               <Button
                                 size="icon"
@@ -648,7 +666,7 @@ const Reservations = () => {
                       <div className="mt-3 pt-3 border-t flex justify-between items-center">
                         <span className="font-semibold">Total:</span>
                         <span className="text-xl font-bold text-primary">
-                          R$ {getCartTotal().toFixed(2)}
+                          {formatCurrency(getCartTotal())}
                         </span>
                       </div>
                     )}
