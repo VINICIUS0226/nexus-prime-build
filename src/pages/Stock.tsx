@@ -98,7 +98,7 @@ const Stock = () => {
       color: '',
       size: '',
       stock_quantity: 0,
-      min_stock_level: 5,
+      min_stock_level: 0,
       cost_price: 0,
       selling_price: 0,
     },
@@ -985,7 +985,7 @@ const Stock = () => {
                           <Input
                             type="number"
                             step="1"
-                            placeholder="Digite"
+                            placeholder="Digite o mínimo de itens"
                             {...field}
                             value={field.value || ''}
                             onChange={(e) => {const value = e.target.value; field.onChange(value === ""?"" : parseFloat(value));}}
