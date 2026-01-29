@@ -29,6 +29,16 @@ const defaultTheme: ThemeConfig = {
   primary_color: '0 100% 71%',
 };
 
+const THEME_CACHE_KEY = 'app-theme-cache';
+
+function cacheTheme(mode: string, primary: string) {
+  try {
+    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify({ mode, primary }));
+  } catch (e) {
+    // localStorage not available
+  }
+}
+
 function applyTheme(mode: ThemeMode, primaryColor: string) {
   const root = document.documentElement;
   
@@ -49,6 +59,9 @@ function applyTheme(mode: ThemeMode, primaryColor: string) {
     const l = parseInt(parts[2]) + 10;
     root.style.setProperty('--primary-glow', `${h} ${s} ${Math.min(l, 95)}%`);
   }
+  
+  // Cache for instant load on next visit
+  cacheTheme(mode, primaryColor);
 }
 
 export function useTheme() {
