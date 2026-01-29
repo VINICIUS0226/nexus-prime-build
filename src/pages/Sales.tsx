@@ -1063,7 +1063,7 @@ const Sales = () => {
                       <TableCell>
                         <div>
                           <p className="font-medium">{sale.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{sale.customer?.phone}</p>
+                          <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
                         </div>
                       </TableCell>
                       <TableCell>

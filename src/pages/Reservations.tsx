@@ -110,7 +110,21 @@ const Reservations = () => {
   useEffect(() => {
     fetchData();
   }, []);
+    // Função para formatar o telefone
+  const formatPhone = (phone: any) => {
+    if (!phone) return "Sem telefone";
+    
+    // 1. Converte para string e remove tudo que não for número
+    const value = String(phone).replace(/\D/g, "");
 
+    // 2. Aplica a máscara (XX) XXXXX-XXXX se tiver 11 dígitos
+    if (value.length === 11) {
+      return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    }
+    
+    // Retorna o original se não bater o tamanho (ex: fixo ou incompleto)
+    return value;
+  };
   // Load prefilled cart from products page
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
@@ -746,7 +760,7 @@ const Reservations = () => {
                       <TableCell>
                         <div>
                           <p className="font-medium">{reservation.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{reservation.customer?.phone}</p>
+                          <p className="text-xs text-muted-foreground">{formatPhone(reservation.customer?.phone || '')}</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -817,7 +831,9 @@ const Reservations = () => {
                   <div>
                     <Label className="text-muted-foreground">Cliente</Label>
                     <p className="font-medium">{selectedReservation.customer?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{selectedReservation.customer?.phone}</p>
+                    <p className="text-sm text-muted-foreground">
+                    {formatPhone(selectedReservation.customer?.phone)}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Código da Sacola</Label>
