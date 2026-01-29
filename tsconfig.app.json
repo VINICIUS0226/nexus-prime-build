@@ -24,7 +24,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+
+    /* Adicionado para corrigir os erros do Jest */
+    "types": ["node", "jest", "@testing-library/jest-dom"]
   },
   "include": ["src"]
 }
