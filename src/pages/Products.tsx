@@ -161,20 +161,27 @@ const Products = () => {
 
     try {
       // Inserir produto
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .insert([{
-          name: formData.name,
-          description: formData.description || null,
-          category: formData.category || null,
-          barcode: formData.barcode || null,
-          cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
-          selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
-          profit_margin: formData.profit_margin ? parseFloat(formData.profit_margin) : null,
-          image_url: formData.image_url || null,
-        }])
-        .select()
-        .single();
+const { data: productData, error: productError } = await supabase
+  .from('products')
+  .insert([{
+    name: formData.name,
+    description: formData.description || null,
+    category: formData.category || null,
+    barcode: formData.barcode || null,
+    cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
+    selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
+    profit_margin:
+      formData.cost_price && parseFloat(formData.cost_price) > 0
+        ? Math.round(
+            ((parseFloat(formData.selling_price) - parseFloat(formData.cost_price)) /
+              parseFloat(formData.cost_price)) *
+              100 
+          ) 
+        : null,
+    image_url: formData.image_url || null,
+  }])
+  .select()
+  .single();
 
       if (productError) throw productError;
 

@@ -98,7 +98,7 @@ const Stock = () => {
       color: '',
       size: '',
       stock_quantity: 0,
-      min_stock_level: 5,
+      min_stock_level: 0,
       cost_price: 0,
       selling_price: 0,
     },
@@ -964,9 +964,10 @@ const Stock = () => {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="0"
+                            placeholder="Digite a quantidade de itens"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            value={field.value || ''}
+                            onChange={(e) => {const value = e.target.value; field.onChange(value === ""?"" : parseFloat(value));}}
                           />
                         </FormControl>
                         <FormMessage />
@@ -983,9 +984,11 @@ const Stock = () => {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="5"
+                            step="1"
+                            placeholder="Digite o mínimo de itens"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            value={field.value || ''}
+                            onChange={(e) => {const value = e.target.value; field.onChange(value === ""?"" : parseFloat(value));}}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1005,9 +1008,10 @@ const Stock = () => {
                           <Input
                             type="number"
                             step="0.01"
-                            placeholder="0.00"
+                            placeholder="Digite o valor do produto"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            value={field.value || ''}
+                            onChange={(e) => {const value = e.target.value; field.onChange(value === ""?"" : parseFloat(value));}}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1025,9 +1029,10 @@ const Stock = () => {
                           <Input
                             type="number"
                             step="0.01"
-                            placeholder="0.00"
+                            placeholder="Digite o valor do produto"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            value={field.value || ''}
+                            onChange={(e) => {const value = e.target.value; field.onChange(value === ""?"" : parseFloat(value));}}
                           />
                         </FormControl>
                         <FormMessage />
