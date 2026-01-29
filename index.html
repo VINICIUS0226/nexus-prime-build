@@ -18,6 +18,33 @@
   </head>
 
   <body>
+    <script>
+      // Synchronously apply cached theme before React loads to prevent flash
+      (function() {
+        try {
+          var cachedTheme = localStorage.getItem('app-theme-cache');
+          if (cachedTheme) {
+            var theme = JSON.parse(cachedTheme);
+            var root = document.documentElement;
+            
+            // Apply dark mode
+            var isDark = theme.mode === 'dark' || 
+              (theme.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) root.classList.add('dark');
+            
+            // Apply primary color
+            if (theme.primary) {
+              root.style.setProperty('--primary', theme.primary);
+              var parts = theme.primary.split(' ');
+              if (parts.length === 3) {
+                var l = parseInt(parts[2]) + 10;
+                root.style.setProperty('--primary-glow', parts[0] + ' ' + parts[1] + ' ' + Math.min(l, 95) + '%');
+              }
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
