@@ -74,17 +74,27 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
         style={{ fontFamily: 'monospace' }}
       >
         {/* Header */}
-        <div className="text-center border-b-2 border-dashed border-black pb-4 mb-4">
-          {storeLogo && (
-            <img src={storeLogo} alt="Logo" className="h-16 mx-auto mb-2 object-contain" />
-          )}
-          <h1 className="text-xl font-bold uppercase">{storeName}</h1>
-          {storeCnpj && <p className="text-xs">CNPJ: {storeCnpj}</p>}
-          {storeAddress && <p className="text-xs mt-1">{storeAddress}</p>}
-          {(storePhone || storeEmail) && (
-            <p className="text-xs">{[storePhone, storeEmail].filter(Boolean).join(' | ')}</p>
-          )}
-          <p className="text-xs mt-2">COMPROVANTE DE VENDA</p>
+        <div className="border-b-2 border-dashed border-black pb-4 mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            {storeLogo && (
+              <img 
+                src={storeLogo} 
+                alt="Logo" 
+                className="w-12 h-12 object-contain flex-shrink-0" 
+              />
+            )}
+            <div className={storeLogo ? "text-left" : "text-center w-full"}>
+              <h1 className="text-lg font-bold uppercase leading-tight">{storeName}</h1>
+              {storeCnpj && <p className="text-[10px]">CNPJ: {storeCnpj}</p>}
+            </div>
+          </div>
+          <div className="text-center">
+            {storeAddress && <p className="text-[10px]">{storeAddress}</p>}
+            {(storePhone || storeEmail) && (
+              <p className="text-[10px]">{[storePhone, storeEmail].filter(Boolean).join(' | ')}</p>
+            )}
+            <p className="text-xs mt-2 font-bold">COMPROVANTE DE VENDA</p>
+          </div>
         </div>
 
         {/* Sale Info */}
