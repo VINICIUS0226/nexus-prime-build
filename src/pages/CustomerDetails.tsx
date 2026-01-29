@@ -142,6 +142,27 @@ const CustomerDetails = () => {
     0
   );
 
+  const formatPhone = (phone: any) => {
+    if (!phone) return "-";
+    const value = String(phone).replace(/\D/g, "");
+    if (value.length === 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    if (value.length === 10) return value.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+    return value;
+  };
+  const formatCPF = (cpf: any) => {
+    if (!cpf) return "";
+    
+    // Limpa tudo que não é número
+    const value = String(cpf).replace(/\D/g, "");
+    
+    // Aplica a máscara se tiver 11 dígitos
+    if (value.length === 11) {
+      return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    }
+    
+    return value; // Retorna original se estiver incompleto
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -266,7 +287,7 @@ const CustomerDetails = () => {
                 <Phone className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <div className="text-sm text-muted-foreground">Telefone</div>
-                  <div className="font-medium">{customer.phone}</div>
+                  <div className="font-medium">{formatPhone(customer.phone)}</div>
                 </div>
               </div>
 
@@ -275,7 +296,7 @@ const CustomerDetails = () => {
                   <FileText className="h-5 w-5 text-primary mt-0.5" />
                   <div>
                     <div className="text-sm text-muted-foreground">CPF</div>
-                    <div className="font-medium">{customer.cpf}</div>
+                    <div className="font-medium">{formatCPF(customer.cpf)}</div>
                   </div>
                 </div>
               )}

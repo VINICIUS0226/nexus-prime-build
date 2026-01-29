@@ -241,7 +241,13 @@ const Customers = () => {
   });
 
   const activeCustomers = customers.filter(c => c.data_consent).length;
-
+  const formatPhone = (phone: any) => {
+    if (!phone) return "-";
+    const value = String(phone).replace(/\D/g, "");
+    if (value.length === 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    if (value.length === 10) return value.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+    return value;
+  };
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -491,7 +497,7 @@ const Customers = () => {
                           Cliente
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{customer.phone}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatPhone(customer.phone)}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
                           customer.data_consent 
