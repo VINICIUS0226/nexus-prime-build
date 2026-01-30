@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, DollarSign, TrendingUp, AlertCircle, Calendar } from 'lucide-react';
+import { Package, Users, ShoppingCart, DollarSign, TrendingUp, AlertCircle, Calendar, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -38,6 +38,7 @@ const Dashboard = () => {
     monthlySales: 0,
     todaySales: 0,
     averageTicket: 0,
+    previousMonthSales: 0,
   });
   const [salesByDay, setSalesByDay] = useState<{ date: string; total: number; count: number }[]>([]);
   const [salesByPaymentMethod, setSalesByPaymentMethod] = useState<{ name: string; value: number; color: string }[]>([]);
@@ -56,8 +57,12 @@ const Dashboard = () => {
       const monthStart = startOfMonth(today).toISOString();
       const monthEnd = endOfMonth(today).toISOString();
       const last30Days = subDays(today, 30).toISOString();
+      
+      // Previous month for comparison
+      const prevMonthStart = startOfMonth(subDays(startOfMonth(today), 1)).toISOString();
+      const prevMonthEnd = endOfMonth(subDays(startOfMonth(today), 1)).toISOString();
 
-      const [products, customers, reservations, allSales, lowStock, monthlySalesData, todaySalesData, payments] = await Promise.all([
+      const [products, customers, reservations, allSales, lowStock, monthlySalesData, todaySalesData, payments, prevMonthSalesData] = await Promise.all([
         supabase.from('products').select('id', { count: 'exact', head: true }),
         supabase.from('customers').select('id', { count: 'exact', head: true }),
         supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'active'),
@@ -66,12 +71,14 @@ const Dashboard = () => {
         supabase.from('sales').select('total').gte('created_at', monthStart).lte('created_at', monthEnd),
         supabase.from('sales').select('total').gte('created_at', startOfToday),
         supabase.from('payments').select('*').gte('created_at', last30Days),
+        supabase.from('sales').select('total').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd),
       ]);
 
       const totalSalesValue = allSales.data?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0;
       const monthlyTotal = monthlySalesData.data?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0;
       const todayTotal = todaySalesData.data?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0;
       const avgTicket = allSales.data && allSales.data.length > 0 ? totalSalesValue / allSales.data.length : 0;
+      const prevMonthTotal = prevMonthSalesData.data?.reduce((sum, sale) => sum + Number(sale.total || 0), 0) || 0;
 
       setStats({
         totalProducts: products.count || 0,
@@ -82,6 +89,7 @@ const Dashboard = () => {
         monthlySales: monthlyTotal,
         todaySales: todayTotal,
         averageTicket: avgTicket,
+        previousMonthSales: prevMonthTotal,
       });
 
       // Process sales by day for the last 30 days
@@ -118,7 +126,7 @@ const Dashboard = () => {
         setRecentSales(allSales.data.slice(0, 5));
       }
 
-      // Process sales by payment method
+      // Process sales by payment method with system colors
       if (payments.data) {
         const paymentMethodColors: Record<string, string> = {
           pix: 'hsl(var(--chart-1))',
@@ -174,53 +182,13 @@ const Dashboard = () => {
     }).format(value);
   };
 
-  const statCards = [
-    {
-      title: 'Vendas Hoje',
-      value: formatCurrency(stats.todaySales),
-      icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      title: 'Vendas no Mês',
-      value: formatCurrency(stats.monthlySales),
-      icon: Calendar,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-    },
-    {
-      title: 'Ticket Médio',
-      value: formatCurrency(stats.averageTicket),
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-    },
-    {
-      title: 'Reservas Ativas',
-      value: stats.activeReservations,
-      icon: ShoppingCart,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
-    },
-  ];
+  const getMonthlyGrowth = () => {
+    if (stats.previousMonthSales === 0) return null;
+    const growth = ((stats.monthlySales - stats.previousMonthSales) / stats.previousMonthSales) * 100;
+    return growth;
+  };
 
-  const secondaryStats = [
-    {
-      title: 'Total de Produtos',
-      value: stats.totalProducts,
-      icon: Package,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
-    },
-    {
-      title: 'Clientes',
-      value: stats.totalCustomers,
-      icon: Users,
-      color: 'text-secondary',
-      bgColor: 'bg-secondary/10',
-    },
-  ];
+  const monthlyGrowth = getMonthlyGrowth();
 
   const chartConfig = {
     total: {
@@ -235,44 +203,107 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu negócio</p>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral do seu negócio</p>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </div>
         </div>
 
-        {/* Main Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map((stat, index) => (
-            <Card key={index} className="hover:shadow-elegant transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+        {/* Main KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Today Sales */}
+          <Card className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Vendas Hoje
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-success/10">
+                <DollarSign className="h-4 w-4 text-success" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.todaySales)}</div>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-success/20" />
+          </Card>
+
+          {/* Monthly Sales */}
+          <Card className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Vendas no Mês
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.monthlySales)}</div>
+              {monthlyGrowth !== null && (
+                <div className={`flex items-center gap-1 text-xs mt-1 ${monthlyGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {monthlyGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {Math.abs(monthlyGrowth).toFixed(1)}% vs mês anterior
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+            </CardContent>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/20" />
+          </Card>
+
+          {/* Average Ticket */}
+          <Card className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Ticket Médio
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-secondary/10">
+                <ShoppingCart className="h-4 w-4 text-secondary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.averageTicket)}</div>
+              <p className="text-xs text-muted-foreground mt-1">Últimos 30 dias</p>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/20" />
+          </Card>
+
+          {/* Active Reservations */}
+          <Card className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Reservas Ativas
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-accent/10">
+                <Package className="h-4 w-4 text-accent" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeReservations}</div>
+              <p className="text-xs text-muted-foreground mt-1">Aguardando processamento</p>
+            </CardContent>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent/20" />
+          </Card>
         </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sales by Day Chart */}
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
                 Vendas nos Últimos 30 Dias
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <BarChart data={salesByDay} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+              <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                <BarChart data={salesByDay} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                   <XAxis 
                     dataKey="date" 
                     tick={{ fontSize: 10 }}
@@ -285,6 +316,7 @@ const Dashboard = () => {
                     tickFormatter={(value) => `R$${value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}`}
                     tickLine={false}
                     axisLine={false}
+                    width={50}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
@@ -303,33 +335,41 @@ const Dashboard = () => {
 
           {/* Sales by Payment Method */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Por Forma de Pagamento
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                Formas de Pagamento
               </CardTitle>
             </CardHeader>
             <CardContent>
               {salesByPaymentMethod.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="h-[200px]">
+                  <div className="h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={salesByPaymentMethod}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
-                          paddingAngle={2}
+                          innerRadius={45}
+                          outerRadius={75}
+                          paddingAngle={3}
                           dataKey="value"
+                          strokeWidth={2}
+                          stroke="hsl(var(--background))"
                         >
                           {salesByPaymentMethod.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <ChartTooltip 
+                        <Tooltip 
                           formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -339,10 +379,10 @@ const Dashboard = () => {
                       <div key={index} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <div 
-                            className="w-3 h-3 rounded-full" 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: method.color }}
                           />
-                          <span className="text-muted-foreground">{method.name}</span>
+                          <span className="text-muted-foreground truncate">{method.name}</span>
                         </div>
                         <span className="font-medium">{formatCurrency(method.value)}</span>
                       </div>
@@ -350,68 +390,92 @@ const Dashboard = () => {
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  Nenhum pagamento registrado nos últimos 30 dias
-                </p>
+                <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+                  Nenhum pagamento nos últimos 30 dias
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Secondary Stats and Alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            {secondaryStats.map((stat, index) => (
-              <Card key={index} className="hover:shadow-elegant transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    {stat.title}
-                  </CardTitle>
-                  <div className={`p-1.5 rounded-lg ${stat.bgColor}`}>
-                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* Bottom Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Products */}
+          <Card className="hover:shadow-elegant transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total de Produtos
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Package className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalProducts}</div>
+            </CardContent>
+          </Card>
+
+          {/* Customers */}
+          <Card className="hover:shadow-elegant transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Clientes Cadastrados
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-secondary/10">
+                <Users className="h-4 w-4 text-secondary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+            </CardContent>
+          </Card>
 
           {/* Low Stock Alert */}
-          {stats.lowStockItems > 0 && (
-            <Card className="border-destructive/50 bg-destructive/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                  <AlertCircle className="h-5 w-5" />
-                  Alerta de Estoque Baixo
+          {stats.lowStockItems > 0 ? (
+            <Card className="border-destructive/30 bg-destructive/5 hover:shadow-elegant transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-destructive">
+                  Estoque Baixo
                 </CardTitle>
+                <div className="p-2 rounded-lg bg-destructive/10">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                </div>
               </CardHeader>
               <CardContent>
-                <p>
-                  Você tem <strong>{stats.lowStockItems}</strong> item(ns) com estoque baixo. 
-                  Considere reabastecer esses produtos.
-                </p>
+                <div className="text-2xl font-bold text-destructive">{stats.lowStockItems}</div>
+                <p className="text-xs text-destructive/80 mt-1">Itens precisam reposição</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="hover:shadow-elegant transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Estoque
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-success/10">
+                  <Package className="h-4 w-4 text-success" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-medium text-success">Tudo OK</div>
+                <p className="text-xs text-muted-foreground mt-1">Nenhum item em baixa</p>
               </CardContent>
             </Card>
           )}
 
-          {/* Total Sales Card */}
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <DollarSign className="h-5 w-5" />
-                Total em Vendas (30 dias)
+          {/* Total Sales 30 Days */}
+          <Card className="bg-primary/5 border-primary/20 hover:shadow-elegant transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-primary">
+                Total (30 dias)
               </CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">
-                {formatCurrency(stats.totalSales)}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {recentSales.length} vendas realizadas
-              </p>
+              <div className="text-2xl font-bold text-primary">{formatCurrency(stats.totalSales)}</div>
+              <p className="text-xs text-primary/70 mt-1">{recentSales.length} vendas</p>
             </CardContent>
           </Card>
         </div>

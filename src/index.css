@@ -55,6 +55,13 @@ All colors MUST be HSL.
     --shadow-elegant: 0 4px 12px -2px hsl(0 0% 0% / 0.1);
     --shadow-glow: 0 2px 8px hsl(0 100% 71% / 0.15);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Chart colors - using system palette */
+    --chart-1: 0 100% 71%;
+    --chart-2: 197 78% 54%;
+    --chart-3: 142 76% 45%;
+    --chart-4: 45 93% 47%;
+    --chart-5: 280 65% 60%;
   }
 
   .dark {
