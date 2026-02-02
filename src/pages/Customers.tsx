@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronDown, Edit, Trash2, Eye, UserCheck, UserX } from 'lucide-react';
+import { Plus, ChevronDown, Edit, Trash2, Eye, UserCheck, UserX, Users, Briefcase, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+
+type CustomerType = 'client' | 'seller' | 'manager';
 
 interface Customer {
   id: string;
@@ -27,7 +29,20 @@ interface Customer {
   city: string | null;
   state: string | null;
   data_consent: boolean;
+  user_type: CustomerType;
 }
+
+const USER_TYPE_LABELS: Record<CustomerType, string> = {
+  client: 'Cliente',
+  seller: 'Vendedor',
+  manager: 'Gerente',
+};
+
+const USER_TYPE_ICONS: Record<CustomerType, React.ReactNode> = {
+  client: <ShoppingBag className="h-3 w-3" />,
+  seller: <Briefcase className="h-3 w-3" />,
+  manager: <Users className="h-3 w-3" />,
+};
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -37,6 +52,8 @@ const Customers = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [sortBy, setSortBy] = useState('name');
+  const [filterType, setFilterType] = useState<CustomerType | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -52,6 +69,7 @@ const Customers = () => {
     city: '',
     state: '',
     data_consent: false,
+    user_type: 'client' as CustomerType,
   });
 
   const fetchAddressByCep = async (cep: string) => {
@@ -120,13 +138,14 @@ const Customers = () => {
             city: formData.city || null,
             state: formData.state || null,
             data_consent: formData.data_consent,
+            user_type: formData.user_type,
           })
           .eq('id', editingCustomer.id);
 
         if (error) throw error;
 
         toast({
-          title: "Cliente atualizado!",
+          title: "Usuário atualizado!",
           description: "As informações foram atualizadas com sucesso.",
         });
       } else {
@@ -143,6 +162,7 @@ const Customers = () => {
           city: formData.city || null,
           state: formData.state || null,
           data_consent: formData.data_consent,
+          user_type: formData.user_type,
         }]);
 
         if (error) throw error;
@@ -204,6 +224,7 @@ const Customers = () => {
       city: customer.city || '',
       state: customer.state || '',
       data_consent: customer.data_consent,
+      user_type: customer.user_type || 'client',
     });
     setDialogOpen(true);
   };
@@ -222,16 +243,25 @@ const Customers = () => {
       city: '',
       state: '',
       data_consent: false,
+      user_type: 'client',
     });
     setEditingCustomer(null);
   };
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm) ||
-    customer.cpf?.includes(searchTerm)
-  );
+  const filteredCustomers = customers.filter(customer => {
+    const matchesSearch = 
+      customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone.includes(searchTerm) ||
+      customer.cpf?.includes(searchTerm);
+    
+    const matchesType = filterType === 'all' || customer.user_type === filterType;
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'active' && customer.data_consent) ||
+      (filterStatus === 'inactive' && !customer.data_consent);
+    
+    return matchesSearch && matchesType && matchesStatus;
+  });
 
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {
     if (sortBy === 'name') {
@@ -241,6 +271,9 @@ const Customers = () => {
   });
 
   const activeCustomers = customers.filter(c => c.data_consent).length;
+  const clientsCount = customers.filter(c => c.user_type === 'client').length;
+  const sellersCount = customers.filter(c => c.user_type === 'seller').length;
+  const managersCount = customers.filter(c => c.user_type === 'manager').length;
   const formatPhone = (phone: any) => {
     if (!phone) return "-";
     const value = String(phone).replace(/\D/g, "");
@@ -255,32 +288,38 @@ const Customers = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
-              <div className="text-sm font-medium opacity-90">Usuários ativos</div>
+              <div className="text-sm font-medium opacity-90">Total de Usuários</div>
               <div className="text-3xl font-bold mt-1">{customers.length}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-accent text-accent-foreground border-0 shadow-elegant">
+            <CardContent className="p-4">
+              <div className="text-sm font-medium opacity-90 flex items-center gap-1">
+                <Users className="h-4 w-4" /> Gerentes
+              </div>
+              <div className="text-3xl font-bold mt-1">{managersCount}</div>
             </CardContent>
           </Card>
           <Card className="bg-secondary text-secondary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
-              <div className="text-sm font-medium opacity-90">Vendedores</div>
-              <div className="text-3xl font-bold mt-1">0</div>
+              <div className="text-sm font-medium opacity-90 flex items-center gap-1">
+                <Briefcase className="h-4 w-4" /> Vendedores
+              </div>
+              <div className="text-3xl font-bold mt-1">{sellersCount}</div>
             </CardContent>
           </Card>
           <Card className="bg-secondary text-secondary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
-              <div className="text-sm font-medium opacity-90">Clientes</div>
-              <div className="text-3xl font-bold mt-1">{customers.length}</div>
+              <div className="text-sm font-medium opacity-90 flex items-center gap-1">
+                <ShoppingBag className="h-4 w-4" /> Clientes
+              </div>
+              <div className="text-3xl font-bold mt-1">{clientsCount}</div>
             </CardContent>
           </Card>
           <Card className="bg-success text-success-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
-              <div className="text-sm font-medium opacity-90">Clientes ativos</div>
+              <div className="text-sm font-medium opacity-90">Usuários Ativos</div>
               <div className="text-3xl font-bold mt-1">{activeCustomers}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
-            <CardContent className="p-4">
-              <div className="text-sm font-medium opacity-90">Administradores</div>
-              <div className="text-3xl font-bold mt-1">1</div>
             </CardContent>
           </Card>
         </div>
@@ -418,18 +457,59 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox
-                    id="data_consent"
-                    checked={formData.data_consent}
-                    onCheckedChange={(checked) => 
-                      setFormData({ ...formData, data_consent: checked as boolean })
-                    }
-                  />
-                  <Label htmlFor="data_consent" className="text-sm font-normal">
-                    Cliente consente com o uso de seus dados pessoais (LGPD)
-                  </Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="user_type">Tipo de Usuário *</Label>
+                    <Select 
+                      value={formData.user_type} 
+                      onValueChange={(value: CustomerType) => setFormData({ ...formData, user_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client">
+                          <div className="flex items-center gap-2">
+                            <ShoppingBag className="h-4 w-4" /> Cliente
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="seller">
+                          <div className="flex items-center gap-2">
+                            <Briefcase className="h-4 w-4" /> Vendedor
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="manager">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" /> Gerente
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="data_consent">Status</Label>
+                    <div className="flex items-center gap-3 h-10">
+                      <Switch
+                        id="data_consent"
+                        checked={formData.data_consent}
+                        onCheckedChange={(checked) => 
+                          setFormData({ ...formData, data_consent: checked })
+                        }
+                      />
+                      <Label htmlFor="data_consent" className="text-sm font-normal cursor-pointer">
+                        {formData.data_consent ? (
+                          <span className="text-success font-medium">Ativo</span>
+                        ) : (
+                          <span className="text-destructive font-medium">Inativo</span>
+                        )}
+                      </Label>
+                    </div>
+                  </div>
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Ao ativar, o usuário consente com o uso de seus dados pessoais (LGPD)
+                </p>
 
                 <div className="flex gap-2 justify-end pt-2">
                   <Button type="button" variant="outline" onClick={() => {
@@ -446,15 +526,52 @@ const Customers = () => {
             </DialogContent>
           </Dialog>
 
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Ordenar por" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Nome</SelectItem>
-              <SelectItem value="recent">Mais recente</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2 flex-wrap">
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as CustomerType | 'all')}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="client">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4" /> Clientes
+                  </div>
+                </SelectItem>
+                <SelectItem value="seller">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" /> Vendedores
+                  </div>
+                </SelectItem>
+                <SelectItem value="manager">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" /> Gerentes
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'active' | 'inactive')}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="inactive">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Nome</SelectItem>
+                <SelectItem value="recent">Mais recente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Tabela de Clientes */}
@@ -492,9 +609,15 @@ const Customers = () => {
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">{customer.full_name}</TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <UserCheck className="h-3 w-3" />
-                          Cliente
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          customer.user_type === 'manager' 
+                            ? 'bg-accent/10 text-accent' 
+                            : customer.user_type === 'seller'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {USER_TYPE_ICONS[customer.user_type || 'client']}
+                          {USER_TYPE_LABELS[customer.user_type || 'client']}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatPhone(customer.phone)}</TableCell>

@@ -32,6 +32,7 @@ export type Database = {
           state: string | null
           street: string | null
           updated_at: string
+          user_type: Database["public"]["Enums"]["customer_type"]
           zip_code: string | null
         }
         Insert: {
@@ -51,6 +52,7 @@ export type Database = {
           state?: string | null
           street?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
         }
         Update: {
@@ -70,6 +72,7 @@ export type Database = {
           state?: string | null
           street?: string | null
           updated_at?: string
+          user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
         }
         Relationships: []
@@ -584,6 +587,7 @@ export type Database = {
       }
     }
     Enums: {
+      customer_type: "client" | "seller" | "manager"
       freight_calculation_rule:
         | "fixed"
         | "by_zip"
@@ -732,6 +736,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      customer_type: ["client", "seller", "manager"],
       freight_calculation_rule: [
         "fixed",
         "by_zip",
