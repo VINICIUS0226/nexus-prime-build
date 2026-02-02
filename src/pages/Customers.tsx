@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronDown, Edit, Trash2, Eye, UserCheck, UserX, Users, Briefcase, ShoppingBag } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, UserCheck, UserX, Users, Briefcase, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -580,7 +580,6 @@ const Customers = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="w-[50px] text-primary-foreground"></TableHead>
                   <TableHead className="text-primary-foreground font-semibold">Nome</TableHead>
                   <TableHead className="text-primary-foreground font-semibold">Perfil</TableHead>
                   <TableHead className="text-primary-foreground font-semibold">Telefone</TableHead>
@@ -591,22 +590,19 @@ const Customers = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : sortedCustomers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       Nenhum cliente encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
                   sortedCustomers.map((customer) => (
                     <TableRow key={customer.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      </TableCell>
                       <TableCell className="font-semibold text-foreground">{customer.full_name}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
