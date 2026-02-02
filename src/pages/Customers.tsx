@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Edit, Trash2, Eye, UserCheck, UserX, Users, Briefcase, ShoppingBag } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, UserCheck, UserX, Users, Briefcase, ShoppingBag, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -54,6 +54,8 @@ const Customers = () => {
   const [sortBy, setSortBy] = useState('name');
   const [filterType, setFilterType] = useState<CustomerType | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -269,6 +271,17 @@ const Customers = () => {
     }
     return 0;
   });
+
+  // Paginação
+  const totalPages = Math.ceil(sortedCustomers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCustomers = sortedCustomers.slice(startIndex, endIndex);
+
+  // Reset para página 1 quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterStatus]);
 
   const activeCustomers = customers.filter(c => c.data_consent).length;
   const clientsCount = customers.filter(c => c.user_type === 'client').length;
@@ -574,104 +587,206 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Tabela de Clientes */}
-        <Card className="border-2 shadow-elegant">
+        {/* Barra de Pesquisa */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, e-mail, telefone ou CPF..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 max-w-md"
+          />
+        </div>
+
+        {/* Tabela de Usuários */}
+        <Card className="border shadow-elegant overflow-hidden">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground font-semibold">Nome</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Perfil</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Telefone</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
-                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Carregando...
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary hover:bg-primary border-b-0">
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-6">Nome</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">E-mail</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Perfil</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Telefone</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Status</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold py-4 px-6">Ações</TableHead>
                   </TableRow>
-                ) : sortedCustomers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhum cliente encontrado
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedCustomers.map((customer) => (
-                    <TableRow key={customer.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-semibold text-foreground">{customer.full_name}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          customer.user_type === 'manager' 
-                            ? 'bg-accent/10 text-accent' 
-                            : customer.user_type === 'seller'
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {USER_TYPE_ICONS[customer.user_type || 'client']}
-                          {USER_TYPE_LABELS[customer.user_type || 'client']}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{formatPhone(customer.phone)}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                          customer.data_consent 
-                            ? 'bg-success/10 text-success' 
-                            : 'bg-destructive/10 text-destructive'
-                        }`}>
-                          {customer.data_consent ? (
-                            <>
-                              <UserCheck className="h-3 w-3" />
-                              Ativo
-                            </>
-                          ) : (
-                            <>
-                              <UserX className="h-3 w-3" />
-                              Inativo
-                            </>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/dashboard/customers/${customer.id}`)}
-                            className="h-8 w-8 text-accent hover:bg-accent/10 hover:text-accent"
-                            title="Ver detalhes"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(customer)}
-                            className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
-                            title="Editar cliente"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(customer.id)}
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            title="Excluir cliente"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        Carregando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : paginatedCustomers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        Nenhum usuário encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedCustomers.map((customer, index) => (
+                      <TableRow 
+                        key={customer.id} 
+                        className={`hover:bg-muted/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
+                      >
+                        <TableCell className="font-medium text-foreground py-4 px-6">
+                          {customer.full_name}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground py-4 px-4 text-sm">
+                          {customer.email || '-'}
+                        </TableCell>
+                        <TableCell className="py-4 px-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
+                            customer.user_type === 'manager' 
+                              ? 'bg-accent/15 text-accent border border-accent/20' 
+                              : customer.user_type === 'seller'
+                              ? 'bg-primary/15 text-primary border border-primary/20'
+                              : 'bg-secondary text-secondary-foreground'
+                          }`}>
+                            {USER_TYPE_ICONS[customer.user_type || 'client']}
+                            {USER_TYPE_LABELS[customer.user_type || 'client']}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground py-4 px-4 font-mono text-sm">
+                          {formatPhone(customer.phone)}
+                        </TableCell>
+                        <TableCell className="py-4 px-4">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold ${
+                            customer.data_consent 
+                              ? 'bg-success/15 text-success border border-success/20' 
+                              : 'bg-destructive/15 text-destructive border border-destructive/20'
+                          }`}>
+                            {customer.data_consent ? (
+                              <>
+                                <UserCheck className="h-3 w-3" />
+                                Ativo
+                              </>
+                            ) : (
+                              <>
+                                <UserX className="h-3 w-3" />
+                                Inativo
+                              </>
+                            )}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-4 px-6">
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/dashboard/customers/${customer.id}`)}
+                              className="h-8 w-8 text-accent hover:bg-accent/10 hover:text-accent"
+                              title="Ver detalhes"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(customer)}
+                              className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+                              title="Editar"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(customer.id)}
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Rodapé com Paginação */}
+            {!loading && sortedCustomers.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-muted/30">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>
+                    Exibindo {startIndex + 1} - {Math.min(endIndex, sortedCustomers.length)} de {sortedCustomers.length} usuários
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span>Por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="h-8 w-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 px-3"
+                  >
+                    Próximo
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
