@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 import { ThemeInitializer } from "@/components/ThemeInitializer";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -21,6 +22,7 @@ import Payments from "./pages/Payments";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,9 @@ const App = () => (
               <Route path="/dashboard/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
               <Route path="/dashboard/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+              <Route path="/admin/stores" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+              <Route path="/admin/users" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CartProvider>
