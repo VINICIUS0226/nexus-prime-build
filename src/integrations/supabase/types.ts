@@ -608,7 +608,7 @@ export type Database = {
         | "awaiting_payment"
         | "completed"
         | "cancelled"
-      user_role: "admin" | "employee"
+      user_role: "admin" | "employee" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -754,7 +754,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
-      user_role: ["admin", "employee"],
+      user_role: ["admin", "employee", "super_admin"],
     },
   },
 } as const
