@@ -30,6 +30,7 @@ export type Database = {
           number: string | null
           phone: string
           state: string | null
+          store_id: string | null
           street: string | null
           updated_at: string
           user_type: Database["public"]["Enums"]["customer_type"]
@@ -50,6 +51,7 @@ export type Database = {
           number?: string | null
           phone: string
           state?: string | null
+          store_id?: string | null
           street?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
@@ -70,12 +72,21 @@ export type Database = {
           number?: string | null
           phone?: string
           state?: string | null
+          store_id?: string | null
           street?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       freight_configs: {
         Row: {
@@ -299,6 +310,7 @@ export type Database = {
           name: string
           profit_margin: number | null
           selling_price: number | null
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -312,6 +324,7 @@ export type Database = {
           name: string
           profit_margin?: number | null
           selling_price?: number | null
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -325,33 +338,56 @@ export type Database = {
           name?: string
           profit_margin?: number | null
           selling_price?: number | null
+          store_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           created_at: string
           full_name: string
           id: string
+          must_change_password: boolean
           phone: string | null
+          store_id: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           full_name: string
           id: string
+          must_change_password?: boolean
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           full_name?: string
           id?: string
+          must_change_password?: boolean
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservation_items: {
         Row: {
@@ -407,6 +443,7 @@ export type Database = {
           id: string
           notes: string | null
           status: Database["public"]["Enums"]["reservation_status"]
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -417,6 +454,7 @@ export type Database = {
           id?: string
           notes?: string | null
           status?: Database["public"]["Enums"]["reservation_status"]
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -427,6 +465,7 @@ export type Database = {
           id?: string
           notes?: string | null
           status?: Database["public"]["Enums"]["reservation_status"]
+          store_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -444,6 +483,13 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales: {
@@ -457,6 +503,7 @@ export type Database = {
           id: string
           notes: string | null
           reservation_id: string | null
+          store_id: string | null
           subtotal: number
           total: number
           updated_at: string
@@ -471,6 +518,7 @@ export type Database = {
           id?: string
           notes?: string | null
           reservation_id?: string | null
+          store_id?: string | null
           subtotal: number
           total: number
           updated_at?: string
@@ -485,6 +533,7 @@ export type Database = {
           id?: string
           notes?: string | null
           reservation_id?: string | null
+          store_id?: string | null
           subtotal?: number
           total?: number
           updated_at?: string
@@ -518,7 +567,59 @@ export type Database = {
             referencedRelation: "reservations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      stores: {
+        Row: {
+          address: string | null
+          city: string | null
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          state: string | null
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
       }
       system_config: {
         Row: {
@@ -578,6 +679,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_store_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -585,6 +687,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       customer_type: "client" | "seller" | "manager"

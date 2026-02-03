@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { Button } from '@/components/ui/button';
 import { DashboardHeader } from '@/components/DashboardHeader';
@@ -14,7 +15,8 @@ import {
   Box,
   Settings,
   CreditCard,
-  Store
+  Store,
+  ShieldCheck
 } from 'lucide-react';
 
 const navigationSections = [
@@ -52,6 +54,7 @@ const navigationSections = [
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
+  const { isSuperAdmin } = useSuperAdmin();
   const { config } = useStoreConfig();
 
   return (
@@ -108,6 +111,19 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
               </div>
             ))}
           </nav>
+
+          {/* Super Admin Link */}
+          {isSuperAdmin && (
+            <div className="px-4 pb-2">
+              <Link
+                to="/admin"
+                className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span className="text-sm font-medium">Painel Super Admin</span>
+              </Link>
+            </div>
+          )}
 
           {/* User section */}
           <div className="p-4 border-t border-border">
