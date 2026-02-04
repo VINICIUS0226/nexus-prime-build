@@ -149,12 +149,12 @@ const Login = () => {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground">
+          {/* <div className="text-center text-sm text-muted-foreground">
             Não possui acesso?{' '}
             <Link to="/signup" className="text-[#7B2869] hover:underline font-semibold">
               Criar sua conta
             </Link>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
