@@ -72,11 +72,12 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#E8DDD3] items-center justify-center p-12  overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#E8DDD3] items-center justify-center p-12">
         <img 
           src={loginIllustration} 
           alt="PQueninos Ilustração" 
-          className="max-w-full h-auto object-contain rounded-xl"        />
+          className="max-w-full h-auto object-contain"
+        />
       </div>
 
       {/* Right side - Login Form */}
