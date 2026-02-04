@@ -38,12 +38,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Pencil, Trash2, Search, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Search, Loader2, UserPlus } from 'lucide-react';
+import { CreateUserDialog } from './CreateUserDialog';
 
 export const RepresentativesManagement = () => {
-  const { representatives, loading, updateRepresentative, deleteRepresentative } = useRepresentatives();
+  const { representatives, loading, updateRepresentative, deleteRepresentative, refetch } = useRepresentatives();
   const { stores } = useStores();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
@@ -112,8 +114,12 @@ export const RepresentativesManagement = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Gerenciamento de Usuários</CardTitle>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Novo Usuário
+        </Button>
       </CardHeader>
 
       <CardContent>
@@ -278,6 +284,13 @@ export const RepresentativesManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        stores={stores}
+        onUserCreated={refetch}
+      />
     </Card>
   );
 };
