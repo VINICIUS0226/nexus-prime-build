@@ -47,7 +47,7 @@ export const RepresentativesManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
-  const [formData, setFormData] = useState({ store_id: '', role: '' });
+  const [formData, setFormData] = useState({ store_id: 'none', role: '' });
   const [saving, setSaving] = useState(false);
   const [repToDelete, setRepToDelete] = useState<Representative | null>(null);
 
@@ -60,7 +60,7 @@ export const RepresentativesManagement = () => {
   const handleOpenDialog = (rep: Representative) => {
     setEditingRep(rep);
     setFormData({
-      store_id: rep.store_id || '',
+      store_id: rep.store_id || 'none',
       role: rep.role || '',
     });
     setIsDialogOpen(true);
@@ -69,7 +69,7 @@ export const RepresentativesManagement = () => {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingRep(null);
-    setFormData({ store_id: '', role: '' });
+    setFormData({ store_id: 'none', role: '' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,7 +78,7 @@ export const RepresentativesManagement = () => {
 
     setSaving(true);
     await updateRepresentative(editingRep.id, {
-      store_id: formData.store_id || null,
+      store_id: formData.store_id === 'none' ? null : formData.store_id,
       role: formData.role,
     });
     setSaving(false);
@@ -220,7 +220,7 @@ export const RepresentativesManagement = () => {
                     <SelectValue placeholder="Selecione uma loja" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="none">Nenhuma</SelectItem>
                     {stores.filter((s) => s.is_active).map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
