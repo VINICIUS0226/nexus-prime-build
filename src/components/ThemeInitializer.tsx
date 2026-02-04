@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const THEME_CACHE_KEY = 'app-theme-cache';
@@ -29,49 +29,42 @@ function cacheTheme(mode: string, primary: string) {
   }
 }
 
-async function fetchAndApplyTheme() {
-  let mode = 'light';
-  let primaryColor = '0 100% 71%';
-
-  try {
-    const { data } = await supabase
-      .from('system_config')
-      .select('config_key, config_value')
-      .in('config_key', ['theme_mode', 'primary_color']);
-
-    data?.forEach((row) => {
-      if (row.config_key === 'theme_mode' && row.config_value) {
-        mode = row.config_value;
-      }
-      if (row.config_key === 'primary_color' && row.config_value) {
-        primaryColor = row.config_value;
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching theme from DB:', error);
-  }
-
-  applyThemeToDOM(mode, primaryColor);
-  cacheTheme(mode, primaryColor);
-}
-
 export function ThemeInitializer() {
+  const [initialized, setInitialized] = useState(false);
+
   useEffect(() => {
-    // Fetch theme on initial mount
-    fetchAndApplyTheme();
+    if (initialized) return;
 
-    // Listen for auth state changes to refetch theme when user logs in
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        // Refetch theme when user signs in
-        fetchAndApplyTheme();
+    const initTheme = async () => {
+      let mode = 'light';
+      let primaryColor = '0 100% 71%';
+
+      try {
+        const { data } = await supabase
+          .from('system_config')
+          .select('config_key, config_value')
+          .in('config_key', ['theme_mode', 'primary_color']);
+
+        data?.forEach((row) => {
+          if (row.config_key === 'theme_mode' && row.config_value) {
+            mode = row.config_value;
+          }
+          if (row.config_key === 'primary_color' && row.config_value) {
+            primaryColor = row.config_value;
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching theme from DB:', error);
       }
-    });
 
-    return () => {
-      subscription.unsubscribe();
+      // Apply and cache for next load
+      applyThemeToDOM(mode, primaryColor);
+      cacheTheme(mode, primaryColor);
+      setInitialized(true);
     };
-  }, []);
+
+    initTheme();
+  }, [initialized]);
 
   return null;
 }
