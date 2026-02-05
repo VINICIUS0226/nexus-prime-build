@@ -3,11 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useMustChangePassword() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const checkMustChangePassword = useCallback(async () => {
+    // Wait for auth to be ready before checking
+    if (authLoading) {
+      return;
+    }
+
     if (!user) {
       setMustChangePassword(false);
       setLoading(false);
@@ -19,17 +24,21 @@ export function useMustChangePassword() {
         .from('profiles')
         .select('must_change_password')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setMustChangePassword(data?.must_change_password || false);
+      if (error) {
+        console.error('Error checking must change password:', error);
+        setMustChangePassword(false);
+      } else {
+        setMustChangePassword(data?.must_change_password || false);
+      }
     } catch (error) {
       console.error('Error checking must change password:', error);
       setMustChangePassword(false);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const clearMustChangePassword = async () => {
     if (!user) return { success: false };
@@ -50,8 +59,14 @@ export function useMustChangePassword() {
   };
 
   useEffect(() => {
-    checkMustChangePassword();
-  }, [checkMustChangePassword]);
+    // Only check when auth is ready
+    if (!authLoading) {
+      checkMustChangePassword();
+    }
+  }, [authLoading, checkMustChangePassword]);
 
-  return { mustChangePassword, loading, clearMustChangePassword, refetch: checkMustChangePassword };
+  // Return combined loading state
+  const isLoading = authLoading || loading;
+
+  return { mustChangePassword, loading: isLoading, clearMustChangePassword, refetch: checkMustChangePassword };
 }
