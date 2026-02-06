@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface StoreConfig {
   store_name: string;
@@ -20,11 +21,14 @@ const defaultConfig: StoreConfig = {
 };
 
 export function useStoreConfig() {
+  const { user, loading: authLoading } = useAuth();
   const [config, setConfig] = useState<StoreConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchConfig = useCallback(async () => {
+    if (authLoading) return;
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -47,7 +51,7 @@ export function useStoreConfig() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading]);
 
   const saveConfig = async (newConfig: Partial<StoreConfig>) => {
     setSaving(true);
@@ -76,8 +80,14 @@ export function useStoreConfig() {
   };
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    if (!authLoading && user) {
+      fetchConfig();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [authLoading, user, fetchConfig]);
 
-  return { config, loading, saving, saveConfig, refetch: fetchConfig };
+  const isLoading = authLoading || loading;
+
+  return { config, loading: isLoading, saving, saveConfig, refetch: fetchConfig };
 }
