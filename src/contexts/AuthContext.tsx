@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const initializedRef = useRef(false);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -38,43 +39,64 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // IMPORTANT: First check for existing session, then set up listener
-    // This prevents race conditions on page reload
+    let mounted = true;
+
+    // 1. Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+
+        // During initialization, skip INITIAL_SESSION — getSession handles it
+        if (!initializedRef.current && event === 'INITIAL_SESSION') {
+          return;
+        }
+
+        // After initialization, handle meaningful events
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          if (currentSession?.user) {
+            // Defer to avoid Supabase client deadlocks
+            setTimeout(() => {
+              if (mounted) fetchUserRole(currentSession.user.id);
+            }, 0);
+          }
+        }
+      }
+    );
+
+    // 2. Then explicitly fetch session for initial load
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchUserRole(session.user.id);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          await fetchUserRole(currentSession.user.id);
         }
       } catch (error) {
         console.error('Error getting session:', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          initializedRef.current = true;
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
-    // Set up auth state listener for subsequent changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Use setTimeout to avoid potential deadlocks with Supabase client
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setUserRole(null);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
