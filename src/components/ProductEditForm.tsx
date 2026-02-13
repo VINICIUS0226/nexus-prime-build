@@ -73,6 +73,8 @@ const variationSchema = z.object({
   color: z.string().max(30, "Máximo 30 caracteres").optional().nullable(),
   stock_quantity: z.coerce.number().min(0, "Deve ser positivo").default(0),
   min_stock_level: z.coerce.number().min(0, "Deve ser positivo").default(5),
+  selling_price: z.coerce.number().min(0, "Deve ser positivo").optional().nullable(),
+  cost_price: z.coerce.number().min(0, "Deve ser positivo").optional().nullable(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -86,6 +88,8 @@ interface ProductVariation {
   stock_quantity: number;
   reserved_quantity: number;
   min_stock_level: number | null;
+  selling_price: number | null;
+  cost_price: number | null;
 }
 
 interface Product {
@@ -212,6 +216,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
         color: variation.color || "",
         stock_quantity: variation.stock_quantity,
         min_stock_level: variation.min_stock_level || 5,
+        selling_price: variation.selling_price ?? undefined,
+        cost_price: variation.cost_price ?? undefined,
       });
     } else {
       setEditingVariation(null);
@@ -221,6 +227,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
         color: "",
         stock_quantity: 0,
         min_stock_level: 5,
+        selling_price: product.selling_price ?? undefined,
+        cost_price: product.cost_price ?? undefined,
       });
     }
     setVariationDialogOpen(true);
@@ -239,6 +247,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
             color: data.color || null,
             stock_quantity: data.stock_quantity,
             min_stock_level: data.min_stock_level,
+            selling_price: data.selling_price ?? null,
+            cost_price: data.cost_price ?? null,
           })
           .eq("id", editingVariation.id);
 
@@ -258,6 +268,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
             color: data.color || null,
             stock_quantity: data.stock_quantity,
             min_stock_level: data.min_stock_level,
+            selling_price: data.selling_price ?? null,
+            cost_price: data.cost_price ?? null,
           });
 
         if (error) throw error;
@@ -547,6 +559,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                   <TableHead>SKU</TableHead>
                   <TableHead>Tamanho</TableHead>
                   <TableHead>Cor</TableHead>
+                  <TableHead>Preço Venda</TableHead>
+                  <TableHead>Preço Custo</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Reservado</TableHead>
                   <TableHead>Disponível</TableHead>
@@ -569,6 +583,8 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                           <Badge variant="outline">{variation.color}</Badge>
                         ) : "-"}
                       </TableCell>
+                      <TableCell>{variation.selling_price != null ? `R$ ${variation.selling_price.toFixed(2)}` : "-"}</TableCell>
+                      <TableCell>{variation.cost_price != null ? `R$ ${variation.cost_price.toFixed(2)}` : "-"}</TableCell>
                       <TableCell>{variation.stock_quantity}</TableCell>
                       <TableCell>{variation.reserved_quantity}</TableCell>
                       <TableCell>
@@ -677,6 +693,47 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                           {...field} 
                           value={field.value || ""}
                           placeholder="Ex: Azul, Vermelho"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={variationForm.control}
+                  name="selling_price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço de Venda (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={variationForm.control}
+                  name="cost_price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço de Custo (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="0.00"
                         />
                       </FormControl>
                       <FormMessage />

@@ -44,6 +44,8 @@ interface ProductVariation {
   color: string | null;
   stock_quantity: number;
   reserved_quantity: number;
+  selling_price: number | null;
+  cost_price: number | null;
   product?: Product;
 }
 
@@ -230,7 +232,7 @@ const Reservations = () => {
       setCart([...cart, {
         variation,
         quantity: 1,
-        unit_price: variation.product?.selling_price || 0
+        unit_price: variation.selling_price ?? variation.product?.selling_price ?? 0
       }]);
     }
   };
