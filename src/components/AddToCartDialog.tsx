@@ -12,6 +12,8 @@ interface ProductVariation {
   color: string | null;
   stock_quantity: number;
   reserved_quantity: number;
+  selling_price: number | null;
+  cost_price: number | null;
 }
 
 interface Product {
@@ -55,6 +57,7 @@ export const AddToCartDialog = ({
   onAddToCart
 }: AddToCartDialogProps) => {
   const [selections, setSelections] = useState<SelectedVariation[]>([]);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   const getProductImage = (): string | null => {
     if (product?.product_images && product.product_images.length > 0) {
@@ -99,6 +102,7 @@ export const AddToCartDialog = ({
       if (!variation) return null;
 
       const variationInfo = [variation.size, variation.color].filter(Boolean).join(' / ');
+      const unitPrice = variation.selling_price ?? product.selling_price ?? 0;
       
       return {
         variationId: sel.variationId,
@@ -106,7 +110,7 @@ export const AddToCartDialog = ({
         productName: product.name,
         variationInfo,
         quantity: sel.quantity,
-        unitPrice: product.selling_price || 0,
+        unitPrice,
         availableStock: getAvailableStock(variation),
         imageUrl: getProductImage()
       };
@@ -114,16 +118,31 @@ export const AddToCartDialog = ({
 
     onAddToCart(items);
     setSelections([]);
+    setSelectedColor(null);
     onOpenChange(false);
   };
 
   const totalSelected = selections.reduce((sum, s) => sum + s.quantity, 0);
 
+  // Extract unique colors
+  const uniqueColors = Array.from(new Set(
+    product?.product_variations?.map(v => v.color).filter(Boolean) || []
+  )) as string[];
+
+  // Filter variations by selected color
+  const filteredVariations = product?.product_variations?.filter(v => {
+    if (!selectedColor) return true;
+    return v.color === selectedColor;
+  }) || [];
+
   if (!product) return null;
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
-      if (!open) setSelections([]);
+      if (!open) {
+        setSelections([]);
+        setSelectedColor(null);
+      }
       onOpenChange(open);
     }}>
       <DialogContent className="max-w-md">
@@ -151,23 +170,50 @@ export const AddToCartDialog = ({
             <div>
               <h3 className="font-semibold">{product.name}</h3>
               {product.selling_price && (
-                <p className="text-lg font-bold text-primary">
-                  R$ {product.selling_price.toFixed(2)}
+                <p className="text-sm text-muted-foreground">
+                  Preço base: R$ {product.selling_price.toFixed(2)}
                 </p>
               )}
             </div>
           </div>
+
+          {/* Color filter */}
+          {uniqueColors.length > 1 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Filtrar por cor:</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge 
+                  variant={selectedColor === null ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedColor(null)}
+                >
+                  Todas
+                </Badge>
+                {uniqueColors.map(color => (
+                  <Badge 
+                    key={color}
+                    variant={selectedColor === color ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedColor(color)}
+                  >
+                    {color}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Lista de variações */}
           <div>
             <p className="text-sm font-medium mb-2">Selecione as variações:</p>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {product.product_variations?.map(variation => {
+                {filteredVariations.map(variation => {
                   const available = getAvailableStock(variation);
                   const isOutOfStock = available <= 0;
                   const selectedQty = getSelectedQuantity(variation.id);
                   const variationLabel = [variation.size, variation.color].filter(Boolean).join(' / ') || variation.sku;
+                  const variationPrice = variation.selling_price ?? product.selling_price ?? 0;
 
                   return (
                     <div 
@@ -180,6 +226,9 @@ export const AddToCartDialog = ({
                         <p className="font-medium">{variationLabel}</p>
                         <p className="text-xs text-muted-foreground">
                           SKU: {variation.sku} • {available} disponíveis
+                        </p>
+                        <p className="text-sm font-semibold text-primary">
+                          R$ {variationPrice.toFixed(2)}
                         </p>
                       </div>
 
