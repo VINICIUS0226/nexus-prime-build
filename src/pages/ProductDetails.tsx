@@ -21,6 +21,8 @@ interface ProductVariation {
   stock_quantity: number;
   reserved_quantity: number;
   min_stock_level: number | null;
+  selling_price: number | null;
+  cost_price: number | null;
 }
 
 interface ProductImage {

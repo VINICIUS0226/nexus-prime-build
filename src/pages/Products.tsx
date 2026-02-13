@@ -24,6 +24,8 @@ interface ProductVariation {
   color: string | null;
   stock_quantity: number;
   reserved_quantity: number;
+  selling_price: number | null;
+  cost_price: number | null;
 }
 
 interface ProductImage {
@@ -89,6 +91,8 @@ const Products = () => {
     color: '',
     stock_quantity: '',
     min_stock_level: '5',
+    selling_price: '',
+    cost_price: '',
   });
 
   useEffect(() => {
@@ -107,7 +111,9 @@ const Products = () => {
             size,
             color,
             stock_quantity,
-            reserved_quantity
+            reserved_quantity,
+            selling_price,
+            cost_price
           ),
           product_images (
             id,
@@ -195,6 +201,8 @@ const { data: productData, error: productError } = await supabase
           color: variationData.color || null,
           stock_quantity: variationData.stock_quantity ? parseInt(variationData.stock_quantity) : 0,
           min_stock_level: variationData.min_stock_level ? parseInt(variationData.min_stock_level) : 5,
+          selling_price: variationData.selling_price ? parseFloat(variationData.selling_price) : (formData.selling_price ? parseFloat(formData.selling_price) : null),
+          cost_price: variationData.cost_price ? parseFloat(variationData.cost_price) : (formData.cost_price ? parseFloat(formData.cost_price) : null),
         }]);
 
       if (variationError) throw variationError;
@@ -299,6 +307,8 @@ const { data: productData, error: productError } = await supabase
       color: '',
       stock_quantity: '',
       min_stock_level: '5',
+      selling_price: '',
+      cost_price: '',
     });
   };
 
@@ -514,6 +524,30 @@ const { data: productData, error: productError } = await supabase
                         type="number"
                         value={variationData.min_stock_level}
                         onChange={(e) => setVariationData({ ...variationData, min_stock_level: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="var_selling_price">Preço de Venda da Variação (R$)</Label>
+                      <Input
+                        id="var_selling_price"
+                        type="number"
+                        step="0.01"
+                        value={variationData.selling_price}
+                        onChange={(e) => setVariationData({ ...variationData, selling_price: e.target.value })}
+                        placeholder="Usa preço do produto se vazio"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="var_cost_price">Preço de Custo da Variação (R$)</Label>
+                      <Input
+                        id="var_cost_price"
+                        type="number"
+                        step="0.01"
+                        value={variationData.cost_price}
+                        onChange={(e) => setVariationData({ ...variationData, cost_price: e.target.value })}
+                        placeholder="Usa preço do produto se vazio"
                       />
                     </div>
                   </div>
