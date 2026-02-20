@@ -254,11 +254,13 @@ export type Database = {
       product_variations: {
         Row: {
           color: string | null
+          cost_price: number | null
           created_at: string
           id: string
           min_stock_level: number | null
           product_id: string
           reserved_quantity: number
+          selling_price: number | null
           size: string | null
           sku: string
           stock_quantity: number
@@ -266,11 +268,13 @@ export type Database = {
         }
         Insert: {
           color?: string | null
+          cost_price?: number | null
           created_at?: string
           id?: string
           min_stock_level?: number | null
           product_id: string
           reserved_quantity?: number
+          selling_price?: number | null
           size?: string | null
           sku: string
           stock_quantity?: number
@@ -278,11 +282,13 @@ export type Database = {
         }
         Update: {
           color?: string | null
+          cost_price?: number | null
           created_at?: string
           id?: string
           min_stock_level?: number | null
           product_id?: string
           reserved_quantity?: number
+          selling_price?: number | null
           size?: string | null
           sku?: string
           stock_quantity?: number
