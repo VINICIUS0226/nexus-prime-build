@@ -406,6 +406,7 @@ const Products = () => {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
+                      placeholder="Digite o nome do produto"
                     />
                   </div>
                   <div className="space-y-2">
@@ -414,6 +415,7 @@ const Products = () => {
                       id="category"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      placeholder="Digite a categoria do produto"
                     />
                   </div>
                 </div>
@@ -424,6 +426,7 @@ const Products = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
+                    placeholder="Digite a descrição do produto"
                   />
                 </div>
                 {/* RESPONSIVIDADE: sm:grid-cols-2 */}
@@ -434,6 +437,7 @@ const Products = () => {
                       id="barcode"
                       value={formData.barcode}
                       onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      placeholder="Informe o código de barras"
                     />
                   </div>
                   <div className="space-y-2">
@@ -456,6 +460,7 @@ const Products = () => {
                       step="0.01"
                       value={formData.cost_price}
                       onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
+                      placeholder="Informe o preço de custo"
                     />
                   </div>
                   <div className="space-y-2">
@@ -466,6 +471,7 @@ const Products = () => {
                       step="0.01"
                       value={formData.selling_price}
                       onChange={(e) => setFormData({ ...formData, selling_price: e.target.value })}
+                      placeholder="Informe o valor de venda do produto"
                     />
                   </div>
                   <div className="space-y-2">
@@ -476,6 +482,7 @@ const Products = () => {
                       step="0.01"
                       value={formData.profit_margin}
                       onChange={(e) => setFormData({ ...formData, profit_margin: e.target.value })}
+                      placeholder="Valor opcional"
                     />
                   </div>
                 </div>
@@ -501,7 +508,7 @@ const Products = () => {
                         type="number"
                         value={variationData.stock_quantity}
                         onChange={(e) => setVariationData({ ...variationData, stock_quantity: e.target.value })}
-                        placeholder="0"
+                        placeholder="Informe a quantidade"
                       />
                     </div>
                   </div>
@@ -532,6 +539,7 @@ const Products = () => {
                         type="number"
                         value={variationData.min_stock_level}
                         onChange={(e) => setVariationData({ ...variationData, min_stock_level: e.target.value })}
+                        placeholder="Informe a quantidade"
                       />
                     </div>
                   </div>
@@ -545,7 +553,7 @@ const Products = () => {
                         step="0.01"
                         value={variationData.selling_price}
                         onChange={(e) => setVariationData({ ...variationData, selling_price: e.target.value })}
-                        placeholder="Usa preço do produto se vazio"
+                        placeholder="Em branco = preço do produto"
                       />
                     </div>
                     <div className="space-y-2">
@@ -556,7 +564,7 @@ const Products = () => {
                         step="0.01"
                         value={variationData.cost_price}
                         onChange={(e) => setVariationData({ ...variationData, cost_price: e.target.value })}
-                        placeholder="Usa preço do produto se vazio"
+                        placeholder="Em branco = preço do produto"
                       />
                     </div>
                   </div>
