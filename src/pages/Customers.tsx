@@ -365,6 +365,7 @@ const Customers = () => {
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                       required
+                      placeholder="Digite o nome"
                     />
                   </div>
                   <div className="space-y-2">
@@ -374,6 +375,7 @@ const Customers = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="Digite o e-mail"
                     />
                   </div>
                 </div>
@@ -424,6 +426,7 @@ const Customers = () => {
                       id="street"
                       value={formData.street}
                       onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                      placeholder="Informe o endereço do cliente"
                     />
                   </div>
                 </div>
@@ -436,6 +439,7 @@ const Customers = () => {
                       id="number"
                       value={formData.number}
                       onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                      placeholder="Informe o número"
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-3">
@@ -444,6 +448,7 @@ const Customers = () => {
                       id="complement"
                       value={formData.complement}
                       onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+                      placeholder="Informe um complemento (Ex: casa, apartamento, etc)"
                     />
                   </div>
                 </div>
@@ -456,6 +461,7 @@ const Customers = () => {
                       id="neighborhood"
                       value={formData.neighborhood}
                       onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                      placeholder="Informe o bairro"
                     />
                   </div>
                   <div className="space-y-2">
@@ -464,6 +470,7 @@ const Customers = () => {
                       id="city"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="Informe o nome da cidade"
                     />
                   </div>
                   <div className="space-y-2">
