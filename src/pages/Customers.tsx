@@ -297,8 +297,8 @@ const Customers = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* RESPONSIVIDADE: grid-cols-1 no mobile para empilhar, sm para 2, lg para 5 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="text-sm font-medium opacity-90">Total de Usuários</div>
@@ -337,23 +337,27 @@ const Customers = () => {
           </Card>
         </div>
 
-        <div className="flex justify-between items-center">
+        {/* RESPONSIVIDADE: flex-col no mobile */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
+              {/* RESPONSIVIDADE: Botão ocupa a largura toda no mobile */}
+              <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Cadastrar usuário
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* RESPONSIVIDADE: Scroll interno e largura dinâmica para o Modal */}
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="full_name">Nome Completo *</Label>
                     <Input
@@ -374,7 +378,8 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="phone">Telefone *</Label>
                     <Input
@@ -396,7 +401,8 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-3 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cep">CEP</Label>
                     <Input
@@ -412,7 +418,7 @@ const Customers = () => {
                       placeholder="00000-000"
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="street">Endereço</Label>
                     <Input
                       id="street"
@@ -422,7 +428,8 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-4 */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="number">Número</Label>
                     <Input
@@ -431,7 +438,7 @@ const Customers = () => {
                       onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2 col-span-3">
+                  <div className="space-y-2 sm:col-span-3">
                     <Label htmlFor="complement">Complemento</Label>
                     <Input
                       id="complement"
@@ -441,7 +448,8 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-3 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="neighborhood">Bairro</Label>
                     <Input
@@ -470,7 +478,8 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="user_type">Tipo de Usuário *</Label>
                     <Select 
@@ -524,14 +533,15 @@ const Customers = () => {
                   Ao ativar, o usuário consente com o uso de seus dados pessoais (LGPD)
                 </p>
 
-                <div className="flex gap-2 justify-end pt-2">
-                  <Button type="button" variant="outline" onClick={() => {
+                {/* RESPONSIVIDADE: flex-col no mobile */}
+                <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => {
                     setDialogOpen(false);
                     resetForm();
                   }}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-primary hover:bg-primary/90">
+                  <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90">
                     {editingCustomer ? 'Atualizar' : 'Cadastrar'}
                   </Button>
                 </div>
@@ -539,9 +549,10 @@ const Customers = () => {
             </DialogContent>
           </Dialog>
 
-          <div className="flex gap-2 flex-wrap">
+          {/* RESPONSIVIDADE: Os filtros agora ocupam w-full em telas bem pequenas para não quebrar */}
+          <div className="flex gap-2 flex-wrap w-full sm:w-auto">
             <Select value={filterType} onValueChange={(v) => setFilterType(v as CustomerType | 'all')}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[110px] sm:w-[150px] flex-1 sm:flex-none">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -565,7 +576,7 @@ const Customers = () => {
             </Select>
 
             <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'active' | 'inactive')}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[110px] sm:w-[140px] flex-1 sm:flex-none">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -576,7 +587,7 @@ const Customers = () => {
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <SelectValue placeholder="Ordenar por" />
               </SelectTrigger>
               <SelectContent>
@@ -594,23 +605,24 @@ const Customers = () => {
             placeholder="Buscar por nome, e-mail, telefone ou CPF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 max-w-md"
+            className="pl-10 max-w-md w-full"
           />
         </div>
 
         {/* Tabela de Usuários */}
         <Card className="border shadow-elegant overflow-hidden">
           <CardContent className="p-0">
+            {/* RESPONSIVIDADE: Scroll Horizontal e whitespace-nowrap nos TH */}
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary border-b-0">
-                    <TableHead className="text-primary-foreground font-semibold py-4 px-6">Nome</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">E-mail</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Perfil</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Telefone</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold py-4 px-4">Status</TableHead>
-                    <TableHead className="text-right text-primary-foreground font-semibold py-4 px-6">Ações</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-6 whitespace-nowrap">Nome</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4 whitespace-nowrap">E-mail</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4 whitespace-nowrap">Perfil</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4 whitespace-nowrap">Telefone</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold py-4 px-4 whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold py-4 px-6 whitespace-nowrap">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -632,13 +644,13 @@ const Customers = () => {
                         key={customer.id} 
                         className={`hover:bg-muted/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
                       >
-                        <TableCell className="font-medium text-foreground py-4 px-6">
+                        <TableCell className="font-medium text-foreground py-4 px-6 whitespace-nowrap">
                           {customer.full_name}
                         </TableCell>
-                        <TableCell className="text-muted-foreground py-4 px-4 text-sm">
+                        <TableCell className="text-muted-foreground py-4 px-4 text-sm whitespace-nowrap">
                           {customer.email || '-'}
                         </TableCell>
-                        <TableCell className="py-4 px-4">
+                        <TableCell className="py-4 px-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
                             customer.user_type === 'manager' 
                               ? 'bg-accent/15 text-accent border border-accent/20' 
@@ -650,10 +662,10 @@ const Customers = () => {
                             {USER_TYPE_LABELS[customer.user_type || 'client']}
                           </span>
                         </TableCell>
-                        <TableCell className="text-muted-foreground py-4 px-4 font-mono text-sm">
+                        <TableCell className="text-muted-foreground py-4 px-4 font-mono text-sm whitespace-nowrap">
                           {formatPhone(customer.phone)}
                         </TableCell>
-                        <TableCell className="py-4 px-4">
+                        <TableCell className="py-4 px-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold ${
                             customer.data_consent 
                               ? 'bg-success/15 text-success border border-success/20' 
@@ -672,7 +684,7 @@ const Customers = () => {
                             )}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right py-4 px-6">
+                        <TableCell className="text-right py-4 px-6 whitespace-nowrap">
                           <div className="flex gap-1 justify-end">
                             <Button
                               variant="ghost"
@@ -711,13 +723,14 @@ const Customers = () => {
             </div>
 
             {/* Rodapé com Paginação */}
+            {/* RESPONSIVIDADE: Empilhamento vertical em telas pequenas */}
             {!loading && sortedCustomers.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t bg-muted/30">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t bg-muted/30">
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground w-full md:w-auto text-center sm:text-left">
                   <span>
                     Exibindo {startIndex + 1} - {Math.min(endIndex, sortedCustomers.length)} de {sortedCustomers.length} usuários
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 justify-center">
                     <span>Por página:</span>
                     <Select value={String(itemsPerPage)} onValueChange={(v) => {
                       setItemsPerPage(Number(v));
@@ -736,16 +749,16 @@ const Customers = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto justify-center">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="h-8 px-3"
+                    className="h-8 px-2 sm:px-3"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Anterior
+                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Anterior</span>
                   </Button>
                   
                   <div className="flex items-center gap-1">
@@ -779,10 +792,10 @@ const Customers = () => {
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="h-8 px-3"
+                    className="h-8 px-2 sm:px-3"
                   >
-                    Próximo
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    <span className="hidden sm:inline">Próximo</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1" />
                   </Button>
                 </div>
               </div>

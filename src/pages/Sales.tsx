@@ -121,7 +121,6 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   bank_slip: { label: 'Boleto', icon: Receipt }
 };
 
-// Format phone number with mask (XX) XXXXX-XXXX
 const formatPhone = (phone: string): string => {
   if (!phone) return '';
   const cleaned = phone.replace(/\D/g, '');
@@ -133,13 +132,9 @@ const formatPhone = (phone: string): string => {
   return phone;
 };
 
-// Utility to sanitize and validate numeric inputs
 const sanitizeNumericInput = (value: string): number => {
-  // Remove leading zeros except for decimals (e.g., "0.5")
   let cleaned = value.replace(/^0+(?=\d)/, '');
-  // Replace comma with dot for decimal
   cleaned = cleaned.replace(',', '.');
-  // Parse and ensure non-negative
   const num = parseFloat(cleaned);
   return isNaN(num) || num < 0 ? 0 : Math.round(num * 100) / 100;
 };
@@ -167,7 +162,6 @@ const Sales = () => {
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Form state
   const [saleMode, setSaleMode] = useState<'direct' | 'reservation'>('direct');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [selectedReservation, setSelectedReservation] = useState<string>('');
@@ -193,7 +187,6 @@ const Sales = () => {
     }
   }, [reservationIdParam, reservations]);
 
-  // Load prefilled cart from products page
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
       const cartItems: CartItem[] = [];
@@ -209,12 +202,10 @@ const Sales = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
-        // Set prefilled customer if available
         if (prefilledCustomer) {
           setSelectedCustomer(prefilledCustomer.id);
         }
         setDialogOpen(true);
-        // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
       }
     }
@@ -278,7 +269,6 @@ const Sales = () => {
   const fetchSaleItems = async (sale: Sale) => {
     try {
       if (sale.reservation_id) {
-        // Fetch from reservation_items if sale was from a reservation
         const { data, error } = await supabase
           .from('reservation_items')
           .select(`
@@ -300,8 +290,6 @@ const Sales = () => {
         }));
         setSaleItems(items);
       } else {
-        // For direct sales, we need to look at what was in the cart at time of sale
-        // Since we don't have a sale_items table, we'll show the totals only
         setSaleItems([]);
       }
     } catch (error: any) {
@@ -400,7 +388,6 @@ const Sales = () => {
   const getTotalPayments = () => payments.reduce((sum, p) => sum + p.amount, 0);
 
   const handleCreateSale = async () => {
-    // Prevent double submissions
     if (isSubmitting) return;
 
     if (!selectedCustomer) {
@@ -428,11 +415,9 @@ const Sales = () => {
       return;
     }
 
-    // Set submitting state to prevent multiple clicks
     setIsSubmitting(true);
 
     try {
-      // For reservation sales, verify reservation is still active before proceeding
       if (saleMode === 'reservation' && selectedReservation) {
         const { data: reservationCheck, error: checkError } = await supabase
           .from('reservations')
@@ -458,7 +443,6 @@ const Sales = () => {
         }
       }
 
-      // Create sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -476,7 +460,6 @@ const Sales = () => {
 
       if (saleError) throw saleError;
 
-      // Create payments
       for (const payment of payments) {
         const { error: paymentError } = await supabase
           .from('payments')
@@ -490,10 +473,8 @@ const Sales = () => {
         if (paymentError) throw paymentError;
       }
 
-      // Update stock
       for (const item of cart) {
         if (saleMode === 'reservation') {
-          // From reservation: decrease both reserved and stock
           await supabase
             .from('product_variations')
             .update({
@@ -502,7 +483,6 @@ const Sales = () => {
             })
             .eq('id', item.variation.id);
         } else {
-          // Direct sale: only decrease stock
           await supabase
             .from('product_variations')
             .update({
@@ -512,7 +492,6 @@ const Sales = () => {
         }
       }
 
-      // Update reservation status if from reservation
       if (saleMode === 'reservation' && selectedReservation) {
         await supabase
           .from('reservations')
@@ -587,7 +566,6 @@ const Sales = () => {
     return <Badge variant="outline">Pendente</Badge>;
   };
 
-  // Stats
   const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === new Date().toDateString());
   const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
   const monthTotal = sales
@@ -601,7 +579,6 @@ const Sales = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Vendas</h1>
           <p className="text-muted-foreground mt-2">
@@ -609,8 +586,8 @@ const Sales = () => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* RESPONSIVIDADE: grid-cols-1 no mobile para evitar esmagamento dos cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -653,19 +630,21 @@ const Sales = () => {
           </Card>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        {/* RESPONSIVIDADE: Empilha os botões/filtros no mobile */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
+              <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Nova Venda
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
+            
+            {/* RESPONSIVIDADE: Scroll interno no modal e p-4 para telas pequenas */}
+            <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
               </DialogHeader>
@@ -682,7 +661,7 @@ const Sales = () => {
                   <TabsTrigger value="reservation">De Reserva</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="reservation" className="space-y-4">
+                <TabsContent value="reservation" className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Selecionar Reserva Ativa</Label>
                     <Select value={selectedReservation} onValueChange={(id) => {
@@ -703,7 +682,7 @@ const Sales = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="direct" className="space-y-4">
+                <TabsContent value="direct" className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Buscar Produtos</Label>
                     <div className="relative">
@@ -735,22 +714,23 @@ const Sales = () => {
                                 <img 
                                   src={variation.product.image_url} 
                                   alt={variation.product?.name}
-                                  className="w-10 h-10 object-cover rounded"
+                                  className="w-10 h-10 object-cover rounded shrink-0"
                                 />
                               ) : (
-                                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
                                   <Package className="h-5 w-5 text-muted-foreground" />
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-sm">{variation.product?.name}</p>
+                                {/* RESPONSIVIDADE: line-clamp para não quebrar layout com nomes longos */}
+                                <p className="font-medium text-sm line-clamp-1">{variation.product?.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {variation.size} {variation.color && `/ ${variation.color}`} | Disp: {available}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm">
+                            <div className="flex items-center gap-2 ml-2">
+                              <span className="font-semibold text-sm whitespace-nowrap">
                                 R$ {variation.product?.selling_price?.toFixed(2)}
                               </span>
                               <Button
@@ -769,6 +749,7 @@ const Sales = () => {
                 </TabsContent>
               </Tabs>
 
+              {/* RESPONSIVIDADE: lg:grid-cols-2 isola as duas colunas apenas em telas grandes */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
                 {/* Left: Cart */}
                 <div className="space-y-4">
@@ -800,51 +781,56 @@ const Sales = () => {
                         {saleMode === 'reservation' ? 'Selecione uma reserva' : 'Adicione produtos'}
                       </p>
                     ) : (
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      <div className="space-y-2 max-h-[250px] overflow-y-auto">
                         {cart.map(item => (
                           <div 
                             key={item.variation.id}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2"
                           >
                             <div className="flex-1">
-                              <p className="text-sm font-medium">{item.variation.product?.name}</p>
+                              <p className="text-sm font-medium line-clamp-1">{item.variation.product?.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, -1)}
-                                disabled={saleMode === 'reservation'}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-6 text-center text-sm">{item.quantity}</span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, 1)}
-                                disabled={saleMode === 'reservation'}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-20 text-right text-sm font-medium">
-                                R$ {(item.unit_price * item.quantity).toFixed(2)}
-                              </span>
-                              {saleMode === 'direct' && (
+                            {/* RESPONSIVIDADE: Organização dos controles de quantidade no mobile */}
+                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                              <div className="flex items-center gap-1">
                                 <Button
                                   size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 text-destructive"
-                                  onClick={() => removeFromCart(item.variation.id)}
+                                  variant="outline"
+                                  className="h-7 w-7 sm:h-6 sm:w-6"
+                                  onClick={() => updateCartQuantity(item.variation.id, -1)}
+                                  disabled={saleMode === 'reservation'}
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Minus className="h-3 w-3" />
                                 </Button>
-                              )}
+                                <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-7 w-7 sm:h-6 sm:w-6"
+                                  onClick={() => updateCartQuantity(item.variation.id, 1)}
+                                  disabled={saleMode === 'reservation'}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
+                                  R$ {(item.unit_price * item.quantity).toFixed(2)}
+                                </span>
+                                {saleMode === 'direct' && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 sm:h-6 sm:w-6 text-destructive shrink-0"
+                                    onClick={() => removeFromCart(item.variation.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -929,12 +915,13 @@ const Sales = () => {
                     ) : (
                       <div className="space-y-2">
                         {payments.map((payment, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                          // RESPONSIVIDADE: flex-col no mobile para não esmagar selects e inputs
+                          <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-muted/50 rounded">
                             <Select
                               value={payment.method}
                               onValueChange={(v) => updatePayment(index, 'method', v)}
                             >
-                              <SelectTrigger className="w-[140px]">
+                              <SelectTrigger className="w-full sm:w-[140px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -943,23 +930,26 @@ const Sales = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="0,00"
-                              value={payment.amount || ''}
-                              onChange={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
-                              onBlur={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() => removePayment(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0,00"
+                                value={payment.amount || ''}
+                                onChange={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
+                                onBlur={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive shrink-0"
+                                onClick={() => removePayment(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                         
@@ -970,7 +960,7 @@ const Sales = () => {
                           </span>
                         </div>
                         {Math.abs(getTotalPayments() - getTotal()) > 0.01 && (
-                          <p className="text-xs text-destructive">
+                          <p className="text-xs text-destructive text-right">
                             {getTotalPayments() < getTotal() 
                               ? `Faltam R$ ${(getTotal() - getTotalPayments()).toFixed(2)}`
                               : `Excesso de R$ ${(getTotalPayments() - getTotal()).toFixed(2)}`
@@ -981,10 +971,11 @@ const Sales = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  {/* RESPONSIVIDADE: Botões ocupando w-full no mobile */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1"
+                      className="flex-1 w-full"
                       onClick={() => {
                         setDialogOpen(false);
                         resetForm();
@@ -993,7 +984,7 @@ const Sales = () => {
                       Cancelar
                     </Button>
                     <Button 
-                      className="flex-1 bg-success text-success-foreground hover:bg-success/90"
+                      className="flex-1 w-full bg-success text-success-foreground hover:bg-success/90"
                       onClick={handleCreateSale}
                       disabled={!selectedCustomer || cart.length === 0 || payments.length === 0 || isSubmitting}
                     >
@@ -1016,7 +1007,7 @@ const Sales = () => {
           </Dialog>
 
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrar por data" />
             </SelectTrigger>
             <SelectContent>
@@ -1031,94 +1022,99 @@ const Sales = () => {
         {/* Sales Table */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground font-semibold">Código</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Cliente</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Origem</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Pagamento</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Carregando...
-                    </TableCell>
+            {/* RESPONSIVIDADE: overflow-x-auto e whitespace-nowrap nos TH */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary hover:bg-primary">
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Código</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Cliente</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Origem</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Total</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Pagamento</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Data</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap">Ações</TableHead>
                   </TableRow>
-                ) : filteredSales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma venda encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSales.map(sale => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-mono text-sm">
-                        #{sale.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{sale.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
-                          {sale.reservation_id ? 'Reserva' : 'Direta'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {sale.total.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{getPaymentStatusBadge(sale.payments || [])}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleViewSale(sale)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Carregando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : filteredSales.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Nenhuma venda encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredSales.map(sale => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-mono text-sm">
+                          #{sale.id.slice(0, 8)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="min-w-[150px]">
+                            <p className="font-medium line-clamp-1">{sale.customer?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
+                            {sale.reservation_id ? 'Reserva' : 'Direta'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap">
+                          R$ {sale.total.toFixed(2)}
+                        </TableCell>
+                        <TableCell>{getPaymentStatusBadge(sale.payments || [])}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleViewSale(sale)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* Sale Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="sm:max-w-2xl w-[95vw]">
             <DialogHeader className="pr-12">
               <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
             </DialogHeader>
             {selectedSale && (
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end">
-                  <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
+                  <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
                     <Printer className="h-4 w-4" />
                     Imprimir Recibo
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Cliente</Label>
+                
+                {/* RESPONSIVIDADE: grid-cols-1 no mobile */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Cliente</Label>
                     <p className="font-medium">{selectedSale.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">{formatPhone(selectedSale.customer?.phone || '')}</p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Data</Label>
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Data</Label>
                     <p className="font-medium">
                       {format(new Date(selectedSale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
@@ -1128,17 +1124,17 @@ const Sales = () => {
                 {saleItems.length > 0 && (
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Itens da Venda</Label>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-lg p-2">
                       {saleItems.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2">
                           <div>
                             <p className="font-medium text-sm">{item.product_name}</p>
                             {item.variation_info && (
                               <p className="text-xs text-muted-foreground">{item.variation_info}</p>
                             )}
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm">{item.quantity}x R$ {item.unit_price.toFixed(2)}</p>
+                          <div className="text-left sm:text-right flex justify-between sm:block">
+                            <p className="text-sm text-muted-foreground">{item.quantity}x R$ {item.unit_price.toFixed(2)}</p>
                             <p className="font-medium text-sm">R$ {(item.quantity * item.unit_price).toFixed(2)}</p>
                           </div>
                         </div>
@@ -1150,7 +1146,7 @@ const Sales = () => {
                 {selectedSale.notes && (
                   <div>
                     <Label className="text-muted-foreground">Observações</Label>
-                    <p className="text-sm">{selectedSale.notes}</p>
+                    <p className="text-sm p-3 bg-muted/50 rounded-lg border">{selectedSale.notes}</p>
                   </div>
                 )}
 
@@ -1181,12 +1177,12 @@ const Sales = () => {
                     {selectedSale.payments?.map(payment => {
                       const PaymentIcon = paymentMethodLabels[payment.method]?.icon || CreditCard;
                       return (
-                        <div key={payment.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <div key={payment.id} className="flex items-center justify-between p-3 border bg-muted/50 rounded">
                           <div className="flex items-center gap-2">
                             <PaymentIcon className="h-4 w-4" />
-                            <span>{paymentMethodLabels[payment.method]?.label || payment.method}</span>
+                            <span className="text-sm font-medium">{paymentMethodLabels[payment.method]?.label || payment.method}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <span className="font-medium">R$ {payment.amount.toFixed(2)}</span>
                             <Badge variant={payment.status === 'approved' ? 'default' : 'outline'} className={payment.status === 'approved' ? 'bg-success' : ''}>
                               {payment.status === 'approved' ? 'Pago' : 'Pendente'}

@@ -171,8 +171,9 @@ const Settings = () => {
             {/* Logo Upload */}
             <div className="space-y-2">
               <Label>Logo da Loja</Label>
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center overflow-hidden bg-muted relative group">
+              {/* RESPONSIVIDADE: flex-col no mobile para empilhar a imagem e o botão */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <div className="w-24 h-24 shrink-0 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center overflow-hidden bg-muted relative group">
                   {formData.store_logo_url ? (
                     <>
                       <img 
@@ -192,7 +193,8 @@ const Settings = () => {
                     <Store className="h-8 w-8 text-muted-foreground/50" />
                   )}
                 </div>
-                <div className="flex-1 space-y-2">
+                {/* RESPONSIVIDADE: text-center no mobile, botão ocupando largura total (w-full) */}
+                <div className="flex-1 space-y-2 w-full text-center sm:text-left">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -204,6 +206,7 @@ const Settings = () => {
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                   >
@@ -226,7 +229,7 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Store Name */}
+            {/* Store Name - Colegas já deixaram responsivo (md:grid-cols-2) */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="store_name">Nome da Loja *</Label>
@@ -250,7 +253,7 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Contact */}
+            {/* Contact - Colegas já deixaram responsivo */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="store_phone">Telefone</Label>
@@ -292,7 +295,7 @@ const Settings = () => {
               <h3 className="font-semibold mb-3 text-sm text-muted-foreground">
                 Prévia do Cabeçalho do Recibo
               </h3>
-              <div className="bg-muted/50 rounded-lg p-4 text-center font-mono text-sm border">
+              <div className="bg-muted/50 rounded-lg p-4 text-center font-mono text-sm border overflow-hidden">
                 {formData.store_logo_url && (
                   <img 
                     src={formData.store_logo_url} 
@@ -300,19 +303,19 @@ const Settings = () => {
                     className="h-12 mx-auto mb-2 object-contain"
                   />
                 )}
-                <p className="font-bold text-lg">
+                <p className="font-bold text-lg truncate">
                   {formData.store_name || 'Nome da Loja'}
                 </p>
                 {formData.store_cnpj && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     CNPJ: {formData.store_cnpj}
                   </p>
                 )}
                 {formData.store_address && (
-                  <p className="text-xs mt-1">{formData.store_address}</p>
+                  <p className="text-xs mt-1 break-words">{formData.store_address}</p>
                 )}
                 {(formData.store_phone || formData.store_email) && (
-                  <p className="text-xs">
+                  <p className="text-xs break-words">
                     {[formData.store_phone, formData.store_email].filter(Boolean).join(' | ')}
                   </p>
                 )}
@@ -321,7 +324,8 @@ const Settings = () => {
 
             {/* Save Button */}
             <div className="flex justify-end pt-4">
-              <Button onClick={handleSave} disabled={saving}>
+              {/* RESPONSIVIDADE: Botão w-full no mobile */}
+              <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -353,11 +357,12 @@ const Settings = () => {
             {/* Theme Mode */}
             <div className="space-y-3">
               <Label>Modo do Tema</Label>
-              <div className="flex gap-3">
+              {/* RESPONSIVIDADE: Empilha os botões de tema verticalmente no celular */}
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   type="button"
                   variant={selectedMode === 'light' ? 'default' : 'outline'}
-                  className="flex-1"
+                  className="flex-1 w-full"
                   onClick={() => setSelectedMode('light')}
                 >
                   <Sun className="h-4 w-4 mr-2" />
@@ -366,7 +371,7 @@ const Settings = () => {
                 <Button
                   type="button"
                   variant={selectedMode === 'dark' ? 'default' : 'outline'}
-                  className="flex-1"
+                  className="flex-1 w-full"
                   onClick={() => setSelectedMode('dark')}
                 >
                   <Moon className="h-4 w-4 mr-2" />
@@ -375,7 +380,7 @@ const Settings = () => {
                 <Button
                   type="button"
                   variant={selectedMode === 'system' ? 'default' : 'outline'}
-                  className="flex-1"
+                  className="flex-1 w-full"
                   onClick={() => setSelectedMode('system')}
                 >
                   <Monitor className="h-4 w-4 mr-2" />
@@ -387,7 +392,8 @@ const Settings = () => {
             {/* Primary Color */}
             <div className="space-y-3">
               <Label>Cor Principal</Label>
-              <div className="grid grid-cols-4 gap-3">
+              {/* RESPONSIVIDADE: grid-cols-2 no mobile, 4 no desktop (evita esmagar as cores) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {PRESET_COLORS.map((color) => (
                   <button
                     key={color.name}
@@ -420,27 +426,29 @@ const Settings = () => {
               <h3 className="font-semibold mb-3 text-sm text-muted-foreground">
                 Prévia do Tema
               </h3>
-              <div className="bg-muted/50 rounded-lg p-4 border space-y-3">
+              <div className="bg-muted/50 rounded-lg p-4 border space-y-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-8 h-8 rounded-full"
+                    className="w-8 h-8 rounded-full shrink-0"
                     style={{ backgroundColor: `hsl(${selectedColor})` }}
                   />
                   <div>
-                    <p className="font-semibold">Cor principal selecionada</p>
+                    <p className="font-semibold text-sm sm:text-base">Cor principal selecionada</p>
                     <p className="text-xs text-muted-foreground">
                       {PRESET_COLORS.find(c => c.primary === selectedColor)?.name || 'Personalizada'}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                {/* RESPONSIVIDADE: Empilha os botões de prévia no celular */}
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button 
                     size="sm" 
+                    className="w-full sm:w-auto"
                     style={{ backgroundColor: `hsl(${selectedColor})` }}
                   >
                     Botão Primário
                   </Button>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" className="w-full sm:w-auto">
                     Botão Secundário
                   </Button>
                 </div>
@@ -449,7 +457,8 @@ const Settings = () => {
 
             {/* Save Button */}
             <div className="flex justify-end pt-4">
-              <Button onClick={handleSaveTheme} disabled={savingTheme}>
+              {/* RESPONSIVIDADE: w-full no mobile */}
+              <Button onClick={handleSaveTheme} disabled={savingTheme} className="w-full sm:w-auto">
                 {savingTheme ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
