@@ -112,21 +112,17 @@ const Reservations = () => {
   useEffect(() => {
     fetchData();
   }, []);
-    // Função para formatar o telefone
+
+  // Função para formatar o telefone
   const formatPhone = (phone: any) => {
     if (!phone) return "Sem telefone";
-    
-    // 1. Converte para string e remove tudo que não for número
     const value = String(phone).replace(/\D/g, "");
-
-    // 2. Aplica a máscara (XX) XXXXX-XXXX se tiver 11 dígitos
     if (value.length === 11) {
       return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
     }
-    
-    // Retorna o original se não bater o tamanho (ex: fixo ou incompleto)
     return value;
   };
+
   // Load prefilled cart from products page
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
@@ -143,12 +139,10 @@ const Reservations = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
-        // Set prefilled customer if available
         if (prefilledCustomer) {
           setSelectedCustomer(prefilledCustomer.id);
         }
         setDialogOpen(true);
-        // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
       }
     }
@@ -277,7 +271,6 @@ const Reservations = () => {
     }
 
     try {
-      // Create reservation
       const { data: reservation, error: reservationError } = await supabase
         .from('reservations')
         .insert({
@@ -292,7 +285,6 @@ const Reservations = () => {
 
       if (reservationError) throw reservationError;
 
-      // Create reservation items in batches to avoid issues with many items
       const BATCH_SIZE = 20;
       const itemsToInsert = cart.map(item => ({
         reservation_id: reservation.id,
@@ -310,7 +302,6 @@ const Reservations = () => {
         if (itemError) throw itemError;
       }
 
-      // Update reserved_quantity for all items in batches
       for (let i = 0; i < cart.length; i += BATCH_SIZE) {
         const batch = cart.slice(i, i + BATCH_SIZE);
         await Promise.all(batch.map(item => 
@@ -344,7 +335,6 @@ const Reservations = () => {
     if (!confirm('Tem certeza que deseja cancelar esta reserva? O estoque será liberado.')) return;
 
     try {
-      // Return stock for each item
       for (const item of reservation.reservation_items || []) {
         if (item.variation) {
           await supabase
@@ -356,7 +346,6 @@ const Reservations = () => {
         }
       }
 
-      // Update reservation status
       const { error } = await supabase
         .from('reservations')
         .update({ status: 'cancelled' })
@@ -425,7 +414,6 @@ const Reservations = () => {
     ) || 0;
   };
 
-  // Stats
   const activeReservations = reservations.filter(r => r.status === 'active').length;
   const completedReservations = reservations.filter(r => r.status === 'completed').length;
   const totalReservedValue = reservations
@@ -435,7 +423,6 @@ const Reservations = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
           <p className="text-muted-foreground mt-2">
@@ -443,8 +430,8 @@ const Reservations = () => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* RESPONSIVIDADE: grid-cols-1 no mobile para não esmagar os cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -485,19 +472,20 @@ const Reservations = () => {
           </Card>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        {/* RESPONSIVIDADE: Empilhamento de botões no mobile */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
+              <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Nova Reserva
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
+            {/* RESPONSIVIDADE: Limite de tamanho e scroll para o modal não cortar no celular */}
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Criar Nova Reserva</DialogTitle>
               </DialogHeader>
@@ -536,15 +524,15 @@ const Reservations = () => {
                                 <img 
                                   src={variation.product.image_url} 
                                   alt={variation.product?.name}
-                                  className="w-12 h-12 object-cover rounded"
+                                  className="w-12 h-12 object-cover rounded shrink-0"
                                 />
                               ) : (
-                                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center shrink-0">
                                   <Package className="h-6 w-6 text-muted-foreground" />
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-sm">{variation.product?.name}</p>
+                                <p className="font-medium text-sm line-clamp-1">{variation.product?.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {variation.size && `Tam: ${variation.size}`}
                                   {variation.size && variation.color && ' | '}
@@ -555,8 +543,8 @@ const Reservations = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm">
+                            <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2 ml-2">
+                              <span className="font-semibold text-sm whitespace-nowrap">
                                 {formatCurrency(variation.product?.selling_price || 0)}
                               </span>
                               <Button
@@ -585,7 +573,7 @@ const Reservations = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {customer.phone}
+                            {customer.full_name} - {formatPhone(customer.phone)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -631,47 +619,52 @@ const Reservations = () => {
                     ) : (
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {cart.map(item => (
+                          // RESPONSIVIDADE: Empilha em telas muito finas, mantém em linha se tiver espaço
                           <div 
                             key={item.variation.id}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2"
                           >
                             <div className="flex-1">
-                              <p className="text-sm font-medium">{item.variation.product?.name}</p>
+                              <p className="text-sm font-medium line-clamp-1">{item.variation.product?.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {item.variation.size && `${item.variation.size}`}
                                 {item.variation.size && item.variation.color && ' / '}
                                 {item.variation.color}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, -1)}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-6 text-center text-sm">{item.quantity}</span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, 1)}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-20 text-right text-sm font-medium">
-                                {formatCurrency(item.unit_price * item.quantity)}
-                              </span>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-destructive"
-                                onClick={() => removeFromCart(item.variation.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-7 w-7 sm:h-6 sm:w-6"
+                                  onClick={() => updateCartQuantity(item.variation.id, -1)}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-7 w-7 sm:h-6 sm:w-6"
+                                  onClick={() => updateCartQuantity(item.variation.id, 1)}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
+                                  {formatCurrency(item.unit_price * item.quantity)}
+                                </span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 sm:h-6 sm:w-6 text-destructive shrink-0"
+                                  onClick={() => removeFromCart(item.variation.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -688,10 +681,11 @@ const Reservations = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  {/* RESPONSIVIDADE: Botões ocupando w-full no mobile */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1"
+                      className="flex-1 w-full"
                       onClick={() => {
                         setDialogOpen(false);
                         resetForm();
@@ -700,7 +694,7 @@ const Reservations = () => {
                       Cancelar
                     </Button>
                     <Button 
-                      className="flex-1 bg-primary hover:bg-primary/90"
+                      className="flex-1 w-full bg-primary hover:bg-primary/90"
                       onClick={handleCreateReservation}
                       disabled={!selectedCustomer || cart.length === 0}
                     >
@@ -713,7 +707,7 @@ const Reservations = () => {
           </Dialog>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
             </SelectTrigger>
             <SelectContent>
@@ -728,127 +722,130 @@ const Reservations = () => {
         {/* Reservations Table */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground font-semibold">Código</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Cliente</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Itens</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Carregando...
-                    </TableCell>
+            {/* RESPONSIVIDADE: overflow-x-auto na tabela principal */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary hover:bg-primary">
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Código</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Cliente</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Itens</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Total</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Data</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap">Ações</TableHead>
                   </TableRow>
-                ) : filteredReservations.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma reserva encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredReservations.map(reservation => (
-                    <TableRow key={reservation.id}>
-                      <TableCell className="font-mono text-sm">
-                        {reservation.bag_code || reservation.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{reservation.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{formatPhone(reservation.customer?.phone || '')}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {reservation.reservation_items?.reduce((sum, item) => sum + item.quantity, 0) || 0} itens
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {getReservationTotal(reservation).toFixed(2)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(reservation.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(reservation.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setSelectedReservation(reservation);
-                              setDetailsOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {reservation.status === 'active' && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-success"
-                                onClick={() => handleConvertToSale(reservation)}
-                                title="Converter em Venda"
-                              >
-                                <DollarSign className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive"
-                                onClick={() => handleCancelReservation(reservation)}
-                                title="Cancelar Reserva"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Carregando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : filteredReservations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Nenhuma reserva encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredReservations.map(reservation => (
+                      <TableRow key={reservation.id}>
+                        <TableCell className="font-mono text-sm">
+                          {reservation.bag_code || reservation.id.slice(0, 8)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="min-w-[150px]">
+                            <p className="font-medium line-clamp-1">{reservation.customer?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPhone(reservation.customer?.phone || '')}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="whitespace-nowrap">
+                            {reservation.reservation_items?.reduce((sum, item) => sum + item.quantity, 0) || 0} itens
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap">
+                          R$ {getReservationTotal(reservation).toFixed(2)}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(reservation.status)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {format(new Date(reservation.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedReservation(reservation);
+                                setDetailsOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {reservation.status === 'active' && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-success"
+                                  onClick={() => handleConvertToSale(reservation)}
+                                  title="Converter em Venda"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => handleCancelReservation(reservation)}
+                                  title="Cancelar Reserva"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader className="flex-shrink-0">
+          <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
+            <DialogHeader className="flex-shrink-0 pr-6">
               <DialogTitle>Detalhes da Reserva</DialogTitle>
             </DialogHeader>
             {selectedReservation && (
               <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Cliente</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Cliente</Label>
                     <p className="font-medium">{selectedReservation.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                     {formatPhone(selectedReservation.customer?.phone)}
                     </p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Código da Sacola</Label>
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Código da Sacola</Label>
                     <p className="font-medium font-mono">
                       {selectedReservation.bag_code || selectedReservation.id.slice(0, 8)}
                     </p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Status</Label>
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Status</Label>
                     <div className="mt-1">{getStatusBadge(selectedReservation.status)}</div>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Data</Label>
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Data</Label>
                     <p className="font-medium">
                       {format(new Date(selectedReservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
@@ -858,7 +855,7 @@ const Reservations = () => {
                 {selectedReservation.notes && (
                   <div>
                     <Label className="text-muted-foreground">Observações</Label>
-                    <p className="text-sm">{selectedReservation.notes}</p>
+                    <p className="text-sm p-3 bg-muted/50 rounded-lg border">{selectedReservation.notes}</p>
                   </div>
                 )}
 
@@ -866,31 +863,31 @@ const Reservations = () => {
                   <Label className="text-muted-foreground mb-2 block">
                     Itens da Reserva ({selectedReservation.reservation_items?.length || 0})
                   </Label>
-                  <div className="border rounded-lg overflow-hidden max-h-[250px] overflow-y-auto">
+                  <div className="border rounded-lg overflow-x-auto">
                     <Table>
-                      <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableHeader className="bg-muted/50">
                         <TableRow>
-                          <TableHead>Produto</TableHead>
-                          <TableHead>Variação</TableHead>
-                          <TableHead className="text-center">Qtd</TableHead>
-                          <TableHead className="text-right">Valor Unit.</TableHead>
-                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead className="whitespace-nowrap">Produto</TableHead>
+                          <TableHead className="whitespace-nowrap">Variação</TableHead>
+                          <TableHead className="text-center whitespace-nowrap">Qtd</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">Valor Unit.</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">Subtotal</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedReservation.reservation_items?.map(item => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">
+                            <TableCell className="font-medium min-w-[150px]">
                               {(item.variation as any)?.product?.name || 'Produto'}
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {(item.variation as any)?.size && `Tam: ${(item.variation as any).size}`}
                               {(item.variation as any)?.size && (item.variation as any)?.color && ' | '}
                               {(item.variation as any)?.color && `Cor: ${(item.variation as any).color}`}
                             </TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                            <TableCell className="text-right font-medium">
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell className="text-right font-medium whitespace-nowrap">
                               {formatCurrency(item.unit_price * item.quantity)}
                             </TableCell>
                           </TableRow>
@@ -900,7 +897,7 @@ const Reservations = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-2 border-t flex-shrink-0">
+                <div className="flex justify-between items-center pt-4 border-t flex-shrink-0 mt-4">
                   <span className="text-lg font-semibold">Total da Reserva:</span>
                   <span className="text-2xl font-bold text-primary">
                     {formatCurrency(getReservationTotal(selectedReservation))}
@@ -908,10 +905,10 @@ const Reservations = () => {
                 </div>
 
                 {selectedReservation.status === 'active' && (
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 pt-4">
                     <Button 
                       variant="destructive" 
-                      className="flex-1"
+                      className="flex-1 w-full"
                       onClick={() => {
                         handleCancelReservation(selectedReservation);
                         setDetailsOpen(false);
@@ -921,7 +918,7 @@ const Reservations = () => {
                       Cancelar Reserva
                     </Button>
                     <Button 
-                      className="flex-1 bg-success text-success-foreground hover:bg-success/90"
+                      className="flex-1 w-full bg-success text-success-foreground hover:bg-success/90"
                       onClick={() => {
                         handleConvertToSale(selectedReservation);
                         setDetailsOpen(false);

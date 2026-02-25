@@ -167,27 +167,27 @@ const Products = () => {
 
     try {
       // Inserir produto
-const { data: productData, error: productError } = await supabase
-  .from('products')
-  .insert([{
-    name: formData.name,
-    description: formData.description || null,
-    category: formData.category || null,
-    barcode: formData.barcode || null,
-    cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
-    selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
-    profit_margin:
-      formData.cost_price && parseFloat(formData.cost_price) > 0
-        ? Math.round(
-            ((parseFloat(formData.selling_price) - parseFloat(formData.cost_price)) /
-              parseFloat(formData.cost_price)) *
-              100 
-          ) 
-        : null,
-    image_url: formData.image_url || null,
-  }])
-  .select()
-  .single();
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .insert([{
+          name: formData.name,
+          description: formData.description || null,
+          category: formData.category || null,
+          barcode: formData.barcode || null,
+          cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
+          selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
+          profit_margin:
+            formData.cost_price && parseFloat(formData.cost_price) > 0
+              ? Math.round(
+                  ((parseFloat(formData.selling_price) - parseFloat(formData.cost_price)) /
+                    parseFloat(formData.cost_price)) *
+                    100 
+                ) 
+              : null,
+          image_url: formData.image_url || null,
+        }])
+        .select()
+        .single();
 
       if (productError) throw productError;
 
@@ -377,24 +377,28 @@ const { data: productData, error: productError } = await supabase
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        {/* RESPONSIVIDADE: flex-col no mobile e sm:flex-row no desktop */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-4xl font-bold mb-2">Produtos</h1>
             <p className="text-muted-foreground">Gerencie seu catálogo de produtos</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90">
+              {/* RESPONSIVIDADE: w-full no mobile */}
+              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Novo Produto
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* RESPONSIVIDADE: Scroll interno e largura dinâmica para Modais */}
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw]">
               <DialogHeader>
                 <DialogTitle>Cadastrar Novo Produto</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome *</Label>
                     <Input
@@ -422,7 +426,8 @@ const { data: productData, error: productError } = await supabase
                     rows={3}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="barcode">Código de Barras</Label>
                     <Input
@@ -441,7 +446,8 @@ const { data: productData, error: productError } = await supabase
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                {/* RESPONSIVIDADE: sm:grid-cols-3 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cost_price">Preço de Custo (R$)</Label>
                     <Input
@@ -476,7 +482,8 @@ const { data: productData, error: productError } = await supabase
                 
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-4">Variação de Produto</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="sku">Código SKU *</Label>
                       <Input
@@ -498,7 +505,8 @@ const { data: productData, error: productError } = await supabase
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 mt-4">
+                  {/* RESPONSIVIDADE: sm:grid-cols-3 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="size">Tamanho</Label>
                       <Input
@@ -527,7 +535,8 @@ const { data: productData, error: productError } = await supabase
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
+                  {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="var_selling_price">Preço de Venda da Variação (R$)</Label>
                       <Input
@@ -552,11 +561,12 @@ const { data: productData, error: productError } = await supabase
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                {/* RESPONSIVIDADE: w-full no mobile */}
+                <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-primary hover:bg-primary/90">
+                  <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90">
                     Cadastrar
                   </Button>
                 </div>

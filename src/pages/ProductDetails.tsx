@@ -267,16 +267,13 @@ const ProductDetails = () => {
     return distribution;
   };
 
-  // Get all images for gallery (product main image + additional images)
   const allImages = () => {
     const images: { url: string; alt: string }[] = [];
     
-    // Add additional images first (sorted by display_order)
     productImages.forEach(img => {
       images.push({ url: img.image_url, alt: img.alt_text || product?.name || 'Imagem do produto' });
     });
     
-    // If no additional images but has main image_url, use it
     if (images.length === 0 && product?.image_url) {
       images.push({ url: product.image_url, alt: product.name });
     }
@@ -325,23 +322,25 @@ const ProductDetails = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        {/* RESPONSIVIDADE: flex-col no mobile, mantendo o botão de voltar alinhado com o conteúdo */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/dashboard/products")}
+            className="shrink-0 self-start"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{product.name}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold break-words">{product.name}</h1>
               {product.category && (
-                <Badge variant="secondary">{product.category}</Badge>
+                <Badge variant="secondary" className="shrink-0">{product.category}</Badge>
               )}
             </div>
             {averageRating > 0 && (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <div className="flex items-center">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
@@ -443,7 +442,7 @@ const ProductDetails = () => {
           <div className="space-y-6">
             {/* Price and Stock Card */}
             <Card>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 {product.selling_price && (
                   <div>
                     <p className="text-4xl font-bold text-primary">
@@ -526,22 +525,23 @@ const ProductDetails = () => {
                 <Separator />
 
                 {/* Action buttons */}
-                <div className="flex gap-3">
+                {/* RESPONSIVIDADE: Empilha os botões no mobile */}
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Button 
-                    className="flex-1"
+                    className="flex-1 w-full"
                     disabled={getAvailableStock() === 0}
                     onClick={() => navigate('/dashboard/sales')}
                   >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-4 w-4 mr-2 shrink-0" />
                     Vender
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="flex-1"
+                    className="flex-1 w-full"
                     disabled={getAvailableStock() === 0}
                     onClick={() => navigate('/dashboard/reservations')}
                   >
-                    <Package className="h-4 w-4 mr-2" />
+                    <Package className="h-4 w-4 mr-2 shrink-0" />
                     Reservar
                   </Button>
                 </div>
@@ -549,7 +549,8 @@ const ProductDetails = () => {
             </Card>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* RESPONSIVIDADE: sm:grid-cols-2 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Vendido</CardTitle>
@@ -596,13 +597,15 @@ const ProductDetails = () => {
 
         {/* Tabs for additional info */}
         <Tabs defaultValue="reviews" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="reviews">
+          {/* RESPONSIVIDADE: flex-wrap na lista de abas para não estourar em telas pequenas */}
+          <TabsList className="flex flex-wrap w-full sm:w-auto h-auto">
+            <TabsTrigger value="reviews" className="flex-1 sm:flex-none">
               Avaliações ({reviews.length})
             </TabsTrigger>
-            <TabsTrigger value="sales">Histórico de Vendas</TabsTrigger>
+            <TabsTrigger value="sales" className="flex-1 sm:flex-none">
+              Histórico de Vendas
+            </TabsTrigger>
           </TabsList>
-
 
           {/* Reviews Tab */}
           <TabsContent value="reviews" className="space-y-4">
@@ -616,6 +619,7 @@ const ProductDetails = () => {
               </CardHeader>
               <CardContent>
                 {reviews.length > 0 ? (
+                  /* RESPONSIVIDADE: Remove a grid fixa para o resumo de reviews no mobile */
                   <div className="grid gap-6 md:grid-cols-[200px_1fr]">
                     {/* Rating Summary */}
                     <div className="text-center">
@@ -644,7 +648,7 @@ const ProductDetails = () => {
                         const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
                         return (
                           <div key={rating} className="flex items-center gap-2">
-                            <span className="w-12 text-sm text-muted-foreground">{rating} estrelas</span>
+                            <span className="w-12 text-sm text-muted-foreground whitespace-nowrap">{rating} estrelas</span>
                             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                               <div 
                                 className="h-full bg-yellow-500 rounded-full transition-all"
@@ -672,9 +676,10 @@ const ProductDetails = () => {
                 {reviews.map((review) => (
                   <Card key={review.id}>
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
+                      {/* RESPONSIVIDADE: flex-col no cabeçalho do review se precisar */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold">{review.customer.full_name}</p>
                             {review.is_verified_purchase && (
                               <Badge variant="secondary" className="text-xs">Compra verificada</Badge>
@@ -723,42 +728,45 @@ const ProductDetails = () => {
               </CardHeader>
               <CardContent>
                 {salesHistory.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Tamanho</TableHead>
-                        <TableHead>Cor</TableHead>
-                        <TableHead>Quantidade</TableHead>
-                        <TableHead>Valor Unitário</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {salesHistory.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            {new Date(item.sale.created_at).toLocaleDateString("pt-BR")}
-                          </TableCell>
-                          <TableCell>{item.sale.customer.full_name}</TableCell>
-                          <TableCell>{item.variation.size || "-"}</TableCell>
-                          <TableCell>
-                            {item.variation.color ? (
-                              <Badge variant="outline">{item.variation.color}</Badge>
-                            ) : (
-                              "-"
-                            )}
-                          </TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>R$ {item.unit_price.toFixed(2)}</TableCell>
-                          <TableCell className="font-semibold">
-                            R$ {(item.quantity * item.unit_price).toFixed(2)}
-                          </TableCell>
+                  /* RESPONSIVIDADE: Scroll Horizontal na tabela */
+                  <div className="overflow-x-auto border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap">Data</TableHead>
+                          <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                          <TableHead className="whitespace-nowrap">Tamanho</TableHead>
+                          <TableHead className="whitespace-nowrap">Cor</TableHead>
+                          <TableHead className="whitespace-nowrap text-center">Quantidade</TableHead>
+                          <TableHead className="whitespace-nowrap text-right">Valor Unit.</TableHead>
+                          <TableHead className="whitespace-nowrap text-right">Total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {salesHistory.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="whitespace-nowrap">
+                              {new Date(item.sale.created_at).toLocaleDateString("pt-BR")}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{item.sale.customer.full_name}</TableCell>
+                            <TableCell>{item.variation.size || "-"}</TableCell>
+                            <TableCell>
+                              {item.variation.color ? (
+                                <Badge variant="outline" className="whitespace-nowrap">{item.variation.color}</Badge>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">{item.quantity}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">R$ {item.unit_price.toFixed(2)}</TableCell>
+                            <TableCell className="font-semibold text-right whitespace-nowrap">
+                              R$ {(item.quantity * item.unit_price).toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     Nenhuma venda registrada para este produto
