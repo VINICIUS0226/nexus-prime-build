@@ -67,7 +67,6 @@ const Reports = () => {
     to: new Date()
   });
 
-  // Update date range when period changes
   const handlePeriodChange = (value: string) => {
     setPeriod(value);
     const now = new Date();
@@ -92,7 +91,6 @@ const Reports = () => {
     }
   };
 
-  // Fetch sales data
   const { data: salesData, isLoading: loadingSales } = useQuery({
     queryKey: ['reports-sales', dateRange],
     queryFn: async () => {
@@ -117,7 +115,6 @@ const Reports = () => {
     }
   });
 
-  // Fetch reservation items for product analysis
   const { data: reservationItems, isLoading: loadingItems } = useQuery({
     queryKey: ['reports-items', dateRange],
     queryFn: async () => {
@@ -146,7 +143,6 @@ const Reports = () => {
     }
   });
 
-  // Fetch customers count
   const { data: customersData } = useQuery({
     queryKey: ['reports-customers', dateRange],
     queryFn: async () => {
@@ -161,7 +157,6 @@ const Reports = () => {
     }
   });
 
-  // Fetch previous period for comparison
   const previousPeriodDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
   const previousDateRange = {
     from: subDays(dateRange.from, previousPeriodDays),
@@ -182,7 +177,6 @@ const Reports = () => {
     }
   });
 
-  // Calculate metrics
   const metrics = useMemo(() => {
     if (!salesData) return null;
 
@@ -212,7 +206,6 @@ const Reports = () => {
     };
   }, [salesData, previousSalesData, customersData]);
 
-  // Chart data - Sales by day
   const chartData = useMemo(() => {
     if (!salesData) return [];
 
@@ -234,7 +227,6 @@ const Reports = () => {
     });
   }, [salesData]);
 
-  // Payment methods distribution
   const paymentMethodsData = useMemo(() => {
     if (!salesData) return [];
 
@@ -257,7 +249,6 @@ const Reports = () => {
     return Object.entries(methodCounts).map(([name, value]) => ({ name, value }));
   }, [salesData]);
 
-  // Top products
   const topProducts = useMemo(() => {
     if (!reservationItems) return [];
 
@@ -280,7 +271,6 @@ const Reports = () => {
       .slice(0, 10);
   }, [reservationItems]);
 
-  // Category distribution
   const categoryData = useMemo(() => {
     if (!reservationItems) return [];
 
@@ -343,8 +333,8 @@ const Reports = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* RESPONSIVIDADE: Header com flex-col no mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
               Relatórios
@@ -354,9 +344,9 @@ const Reports = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Select value={period} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Selecione o período" />
               </SelectTrigger>
               <SelectContent>
@@ -370,7 +360,7 @@ const Reports = () => {
 
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="shrink-0">
                   <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
@@ -404,13 +394,11 @@ const Reports = () => {
           </div>
         </div>
 
-        {/* Period indicator */}
         <div className="text-sm text-muted-foreground">
           Período: {format(dateRange.from, 'dd/MM/yyyy', { locale: ptBR })} - {format(dateRange.to, 'dd/MM/yyyy', { locale: ptBR })}
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
@@ -508,17 +496,15 @@ const Reports = () => {
           </Card>
         </div>
 
-        {/* Charts */}
         <Tabs defaultValue="vendas" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="vendas">Vendas</TabsTrigger>
-            <TabsTrigger value="produtos">Produtos</TabsTrigger>
-            <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
+          <TabsList className="w-full sm:w-auto flex-wrap h-auto">
+            <TabsTrigger value="vendas" className="flex-1 sm:flex-none">Vendas</TabsTrigger>
+            <TabsTrigger value="produtos" className="flex-1 sm:flex-none">Produtos</TabsTrigger>
+            <TabsTrigger value="pagamentos" className="flex-1 sm:flex-none">Pagamentos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="vendas" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Sales over time */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -590,7 +576,6 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Recent sales table */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>Vendas Recentes</CardTitle>
@@ -606,14 +591,15 @@ const Reports = () => {
                       ))}
                     </div>
                   ) : salesData && salesData.length > 0 ? (
-                    <div className="max-h-[400px] overflow-y-auto">
+                    /* RESPONSIVIDADE: Scroll na tabela */
+                    <div className="max-h-[400px] overflow-y-auto overflow-x-auto border rounded-md">
                       <Table>
                         <TableHeader className="sticky top-0 bg-background">
                           <TableRow>
-                            <TableHead>Código</TableHead>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Data</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="whitespace-nowrap">Código</TableHead>
+                            <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                            <TableHead className="whitespace-nowrap">Data</TableHead>
+                            <TableHead className="text-right whitespace-nowrap">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -622,11 +608,11 @@ const Reports = () => {
                               <TableCell className="font-mono text-xs">
                                 #{sale.id.slice(0, 8).toUpperCase()}
                               </TableCell>
-                              <TableCell>{sale.customer?.full_name || '-'}</TableCell>
-                              <TableCell>
+                              <TableCell className="whitespace-nowrap">{sale.customer?.full_name || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 {format(parseISO(sale.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                               </TableCell>
-                              <TableCell className="text-right font-medium">
+                              <TableCell className="text-right font-medium whitespace-nowrap">
                                 {formatCurrency(Number(sale.total))}
                               </TableCell>
                             </TableRow>
@@ -646,7 +632,6 @@ const Reports = () => {
 
           <TabsContent value="produtos" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Top products */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -673,13 +658,13 @@ const Reports = () => {
                               {index + 1}º
                             </span>
                             <div>
-                              <p className="font-medium text-sm">{product.name}</p>
+                              <p className="font-medium text-sm line-clamp-1">{product.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {product.quantity} unidades
                               </p>
                             </div>
                           </div>
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="whitespace-nowrap ml-2">
                             {formatCurrency(product.revenue)}
                           </Badge>
                         </div>
@@ -693,7 +678,6 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Category distribution */}
               <Card>
                 <CardHeader>
                   <CardTitle>Vendas por Categoria</CardTitle>
@@ -743,7 +727,6 @@ const Reports = () => {
 
           <TabsContent value="pagamentos" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Payment methods chart */}
               <Card>
                 <CardHeader>
                   <CardTitle>Métodos de Pagamento</CardTitle>
@@ -789,7 +772,7 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Payment methods breakdown */}
+              {/* CARD RESTAURADO: Detalhamento de Pagamentos */}
               <Card>
                 <CardHeader>
                   <CardTitle>Detalhamento</CardTitle>
@@ -837,7 +820,6 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Discounts card */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>Resumo de Descontos</CardTitle>
