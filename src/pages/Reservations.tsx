@@ -16,10 +16,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
-  Minus
+  Minus, Printer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { usePrint } from '@/hooks/usePrint';
+import { useStoreConfig } from '@/hooks/useStoreConfig';
+import { ReservationReceipt } from '@/components/ReservationReceipt';
 
 interface Customer {
   id: string;
@@ -91,6 +94,8 @@ const Reservations = () => {
   const location = useLocation();
   const prefilledCart = (location.state as any)?.prefilledCart;
   const prefilledCustomer = (location.state as any)?.prefilledCustomer;
+  const { printRef, handlePrint } = usePrint();
+  const { config: storeConfig } = useStoreConfig();
   
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -829,6 +834,17 @@ const Reservations = () => {
             </DialogHeader>
             {selectedReservation && (
               <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => handlePrint('Recibo de Reserva')}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir Recibo / Etiquetas
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Cliente</Label>
@@ -936,6 +952,17 @@ const Reservations = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Hidden receipt for printing */}
+        <div className="hidden">
+          {selectedReservation && (
+            <ReservationReceipt
+              ref={printRef}
+              reservation={selectedReservation}
+              storeConfig={storeConfig}
+            />
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -36,6 +36,7 @@ interface Product {
   id: string;
   name: string;
   description: string | null;
+  barcode: string | null;
   selling_price: number | null;
   image_url: string | null;
 }
@@ -178,6 +179,7 @@ const Sales = () => {
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [barcodeInput, setBarcodeInput] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -237,7 +239,7 @@ const Sales = () => {
           .from('product_variations')
           .select(`
             *,
-            product:products(id, name, description, selling_price, image_url)
+            product:products(id, name, description, barcode, selling_price, image_url)
           `),
         supabase
           .from('reservations')
@@ -552,12 +554,47 @@ const Sales = () => {
     setProductSearch('');
   };
 
+  const handleBarcodeKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+
+    const code = barcodeInput.trim();
+    if (!code) return;
+
+    const matches = variations.filter((v) => {
+      const product = v.product;
+      return v.sku === code || product?.barcode === code;
+    });
+
+    if (matches.length === 0) {
+      toast({
+        title: 'Produto não encontrado',
+        description: `Nenhum produto ou variação encontrada para o código "${code}".`,
+        variant: 'destructive',
+      });
+      setBarcodeInput('');
+      return;
+    }
+
+    if (matches.length > 1) {
+      toast({
+        title: 'Múltiplas variações encontradas',
+        description:
+          'Mais de uma variação corresponde ao código informado. A primeira variação encontrada foi adicionada ao carrinho. Refine pela busca se necessário.',
+      });
+    }
+
+    addToCart(matches[0]);
+    setBarcodeInput('');
+  };
+
   const filteredVariations = variations.filter(v => {
     const product = v.product;
     if (!product) return false;
     const searchLower = productSearch.toLowerCase();
     return (
       product.name.toLowerCase().includes(searchLower) ||
+      product.barcode?.toLowerCase().includes(searchLower) ||
       v.sku.toLowerCase().includes(searchLower) ||
       v.color?.toLowerCase().includes(searchLower) ||
       v.size?.toLowerCase().includes(searchLower)
@@ -704,16 +741,28 @@ const Sales = () => {
                 </TabsContent>
 
                 <TabsContent value="direct" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Buscar Produtos</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Código de Barras / SKU (leitor)</Label>
                       <Input
-                        placeholder="Nome, SKU, cor ou tamanho..."
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        className="pl-10"
+                        placeholder="Aproxime o leitor e pressione Enter..."
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeKeyDown}
+                        autoComplete="off"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Buscar Produtos</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Nome, SKU, cor ou tamanho..."
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1106,7 +1155,7 @@ const Sales = () => {
             {selectedSale && (
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end">
-                  <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
+                  <Button onClick={() => handlePrint('Recibo de Venda')} variant="outline" size="sm" className="gap-2">
                     <Printer className="h-4 w-4" />
                     Imprimir Recibo
                   </Button>

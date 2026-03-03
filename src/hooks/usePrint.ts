@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react';
 export const usePrint = () => {
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback((title: string = 'Recibo') => {
     if (!printRef.current) return;
 
     const printContent = printRef.current.innerHTML;
@@ -18,7 +18,7 @@ export const usePrint = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Recibo de Venda</title>
+          <title>${title}</title>
           <style>
             * {
               margin: 0;

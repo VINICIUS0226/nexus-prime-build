@@ -298,6 +298,48 @@ const Reports = () => {
 
   const isLoading = loadingSales || loadingItems;
 
+  const exportSalesToCsv = () => {
+    if (!salesData || salesData.length === 0) {
+      return;
+    }
+
+    const headers = [
+      'codigo',
+      'data',
+      'cliente',
+      'total',
+      'subtotal',
+      'desconto',
+      'frete',
+    ];
+
+    const rows = salesData.map((sale) => [
+      sale.id,
+      format(parseISO(sale.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      sale.customer?.full_name || '',
+      String(sale.total ?? ''),
+      String(sale.subtotal ?? ''),
+      String(sale.discount ?? ''),
+      String(sale.freight_value ?? ''),
+    ]);
+
+    const csvContent = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+
+    if (typeof window === 'undefined') return;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const from = format(dateRange.from, 'yyyy-MM-dd');
+    const to = format(dateRange.to, 'yyyy-MM-dd');
+    link.download = `relatorio-vendas-${from}-a-${to}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -348,6 +390,17 @@ const Reports = () => {
                 />
               </PopoverContent>
             </Popover>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={exportSalesToCsv}
+              disabled={isLoading || !salesData || salesData.length === 0}
+              title="Exportar vendas para CSV"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
