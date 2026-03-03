@@ -65,7 +65,6 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
     const storePhone = storeConfig?.store_phone;
     const storeEmail = storeConfig?.store_email;
     const storeCnpj = storeConfig?.store_cnpj;
-    const storeLogo = storeConfig?.store_logo_url;
 
     return (
       <div 
@@ -75,20 +74,9 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
       >
         {/* Header */}
         <div className="border-b-2 border-dashed border-black pb-4 mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            {storeLogo && (
-              <img 
-                src={storeLogo} 
-                alt="Logo" 
-                className="w-12 h-12 object-contain flex-shrink-0" 
-              />
-            )}
-            <div className={storeLogo ? "text-left" : "text-center w-full"}>
-              <h1 className="text-lg font-bold uppercase leading-tight">{storeName}</h1>
-              {storeCnpj && <p className="text-[10px]">CNPJ: {storeCnpj}</p>}
-            </div>
-          </div>
           <div className="text-center">
+            <h1 className="text-lg font-bold uppercase leading-tight">{storeName}</h1>
+            {storeCnpj && <p className="text-[10px]">CNPJ: {storeCnpj}</p>}
             {storeAddress && <p className="text-[10px]">{storeAddress}</p>}
             {(storePhone || storeEmail) && (
               <p className="text-[10px]">{[storePhone, storeEmail].filter(Boolean).join(' | ')}</p>
