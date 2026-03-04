@@ -1,6 +1,7 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import QRCode from 'qrcode';
 
 interface Customer {
   id: string;
@@ -83,6 +84,21 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
       };
     }, [reservation.reservation_items]);
 
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+      const encoded = JSON.stringify({
+        id: reservation.id,
+        bag_code: reservation.bag_code,
+        customer: reservation.customer?.full_name,
+        created_at: reservation.created_at,
+      });
+
+      QRCode.toDataURL(encoded, { margin: 0, scale: 4 })
+        .then((url) => setQrDataUrl(url))
+        .catch(() => setQrDataUrl(null));
+    }, [reservation.id, reservation.bag_code, reservation.customer?.full_name, reservation.created_at]);
+
     const labels = Array.from({ length: Math.max(1, Math.min(labelCopies, 4)) });
 
     return (
@@ -102,24 +118,35 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
           <p className="text-xs mt-2 font-bold">RECIBO / CONTROLE DE RESERVA</p>
         </div>
 
-        {/* Reservation Info */}
-        <div className="border-b border-dashed border-black pb-3 mb-3">
-          <div className="flex justify-between">
-            <span>Cód. sacola:</span>
-            <span className="font-bold">{code}</span>
+        {/* Reservation Info + QR */}
+        <div className="border-b border-dashed border-black pb-3 mb-3 flex justify-between gap-2">
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between">
+              <span>Cód. sacola:</span>
+              <span className="font-bold">{code}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Reserva:</span>
+              <span className="font-bold">#{reservation.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Data:</span>
+              <span>{format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Status:</span>
+              <span className="font-bold">{String(reservation.status || '').toUpperCase()}</span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span>Reserva:</span>
-            <span className="font-bold">#{reservation.id.slice(0, 8).toUpperCase()}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Data:</span>
-            <span>{format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Status:</span>
-            <span className="font-bold">{String(reservation.status || '').toUpperCase()}</span>
-          </div>
+          {qrDataUrl && (
+            <div className="flex items-center justify-center">
+              <img
+                src={qrDataUrl}
+                alt={`QR ${code}`}
+                className="w-16 h-16 object-contain"
+              />
+            </div>
+          )}
         </div>
 
         {/* Customer Info */}
@@ -233,13 +260,24 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
 
         {labels.map((_, idx) => (
           <div key={idx} className="border-2 border-dashed border-black p-3 mb-3">
-            <div className="text-center">
-              <div className="text-xl font-bold">{code}</div>
-              <div className="text-xs mt-1">{reservation.customer?.full_name || '-'}</div>
-              <div className="text-xs">{reservation.customer?.phone || '-'}</div>
-              <div className="text-[10px] mt-1">
-                {format(new Date(reservation.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 text-left">
+                <div className="text-xl font-bold">{code}</div>
+                <div className="text-xs mt-1">{reservation.customer?.full_name || '-'}</div>
+                <div className="text-xs">{reservation.customer?.phone || '-'}</div>
+                <div className="text-[10px] mt-1">
+                  {format(new Date(reservation.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                </div>
               </div>
+              {qrDataUrl && (
+                <div className="flex-shrink-0">
+                  <img
+                    src={qrDataUrl}
+                    alt={`QR ${code}`}
+                    className="w-16 h-16 object-contain"
+                  />
+                </div>
+              )}
             </div>
             <div className="border-t border-dotted border-black mt-2 pt-2 text-[10px]">
               <div className="flex justify-between">
