@@ -175,6 +175,8 @@ const Sales = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [freightValue, setFreightValue] = useState(0);
+  const [selectedFreightConfig, setSelectedFreightConfig] = useState<string>('none');
+  const [freightConfigs, setFreightConfigs] = useState<Array<{ id: string; name: string; base_value: number; description: string | null; calculation_rule: string }>>([]);
   const [notes, setNotes] = useState('');
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -225,7 +227,7 @@ const Sales = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [salesRes, customersRes, variationsRes, reservationsRes] = await Promise.all([
+      const [salesRes, customersRes, variationsRes, reservationsRes, freightRes] = await Promise.all([
         supabase
           .from('sales')
           .select(`
@@ -254,7 +256,12 @@ const Sales = () => {
               )
             )
           `)
-          .eq('status', 'active')
+          .eq('status', 'active'),
+        supabase
+          .from('freight_configs')
+          .select('id, name, base_value, description, calculation_rule')
+          .eq('is_active', true)
+          .order('name')
       ]);
 
       if (salesRes.error) throw salesRes.error;
@@ -266,6 +273,7 @@ const Sales = () => {
       setCustomers(customersRes.data || []);
       setVariations(variationsRes.data as any || []);
       setReservations(reservationsRes.data as any || []);
+      setFreightConfigs(freightRes.data || []);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -469,6 +477,7 @@ const Sales = () => {
           created_by: user?.id,
           subtotal: getSubtotal(),
           freight_value: freightValue,
+          freight_config_id: selectedFreightConfig !== 'none' ? selectedFreightConfig : null,
           discount: discount,
           total: totalAmount,
           notes: notes || null
@@ -549,6 +558,7 @@ const Sales = () => {
     setCart([]);
     setDiscount(0);
     setFreightValue(0);
+    setSelectedFreightConfig('none');
     setNotes('');
     setPayments([]);
     setProductSearch('');
@@ -903,15 +913,31 @@ const Sales = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Frete (R$)</Label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={freightValue || ''}
-                        onChange={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
-                        onBlur={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
-                      />
+                      <Label>Frete</Label>
+                      <Select
+                        value={selectedFreightConfig}
+                        onValueChange={(value) => {
+                          setSelectedFreightConfig(value);
+                          if (value === 'none') {
+                            setFreightValue(0);
+                          } else {
+                            const config = freightConfigs.find(f => f.id === value);
+                            if (config) setFreightValue(config.base_value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o frete" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem frete</SelectItem>
+                          {freightConfigs.map(fc => (
+                            <SelectItem key={fc.id} value={fc.id}>
+                              {fc.name} - R$ {fc.base_value.toFixed(2)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Desconto (R$)</Label>

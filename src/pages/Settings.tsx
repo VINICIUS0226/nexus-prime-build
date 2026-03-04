@@ -1,16 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Store, Upload, Loader2, Save, X, Palette, Sun, Moon, Monitor, Check } from 'lucide-react';
+import { Store, Upload, Loader2, Save, X, Palette, Sun, Moon, Monitor, Check, Truck, Plus, Trash2, Edit } from 'lucide-react';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTheme, PRESET_COLORS, ThemeMode } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface FreightConfig {
+  id: string;
+  name: string;
+  description: string | null;
+  base_value: number;
+  calculation_rule: string;
+  is_active: boolean;
+}
 
 const Settings = () => {
   const { config, loading, saving, saveConfig, refetch } = useStoreConfig();
@@ -18,6 +30,21 @@ const Settings = () => {
   const [selectedMode, setSelectedMode] = useState<ThemeMode>('light');
   const [selectedColor, setSelectedColor] = useState('0 100% 71%');
   const [savingTheme, setSavingTheme] = useState(false);
+  
+  // Freight configs
+  const [freightConfigs, setFreightConfigs] = useState<FreightConfig[]>([]);
+  const [loadingFreight, setLoadingFreight] = useState(true);
+  const [freightDialogOpen, setFreightDialogOpen] = useState(false);
+  const [editingFreight, setEditingFreight] = useState<FreightConfig | null>(null);
+  const [savingFreight, setSavingFreight] = useState(false);
+  const [freightForm, setFreightForm] = useState({
+    name: '',
+    description: '',
+    base_value: '',
+    calculation_rule: 'fixed',
+    is_active: true,
+  });
+
   const [formData, setFormData] = useState({
     store_name: '',
     store_phone: '',
@@ -122,6 +149,88 @@ const Settings = () => {
       toast.error('Erro ao salvar tema');
     }
     setSavingTheme(false);
+  };
+
+  // Freight config management
+  const fetchFreightConfigs = useCallback(async () => {
+    setLoadingFreight(true);
+    try {
+      const { data, error } = await supabase
+        .from('freight_configs')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      setFreightConfigs(data || []);
+    } catch (error) {
+      console.error('Error fetching freight configs:', error);
+    } finally {
+      setLoadingFreight(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFreightConfigs();
+  }, [fetchFreightConfigs]);
+
+  const openFreightDialog = (config?: FreightConfig) => {
+    if (config) {
+      setEditingFreight(config);
+      setFreightForm({
+        name: config.name,
+        description: config.description || '',
+        base_value: config.base_value.toString(),
+        calculation_rule: config.calculation_rule,
+        is_active: config.is_active,
+      });
+    } else {
+      setEditingFreight(null);
+      setFreightForm({ name: '', description: '', base_value: '', calculation_rule: 'fixed', is_active: true });
+    }
+    setFreightDialogOpen(true);
+  };
+
+  const handleSaveFreight = async () => {
+    if (!freightForm.name || !freightForm.base_value) {
+      toast.error('Nome e valor são obrigatórios');
+      return;
+    }
+    setSavingFreight(true);
+    try {
+      const payload = {
+        name: freightForm.name,
+        description: freightForm.description || null,
+        base_value: parseFloat(freightForm.base_value),
+        calculation_rule: freightForm.calculation_rule as any,
+        is_active: freightForm.is_active,
+      };
+
+      if (editingFreight) {
+        const { error } = await supabase.from('freight_configs').update(payload).eq('id', editingFreight.id);
+        if (error) throw error;
+        toast.success('Configuração de frete atualizada!');
+      } else {
+        const { error } = await supabase.from('freight_configs').insert(payload);
+        if (error) throw error;
+        toast.success('Configuração de frete criada!');
+      }
+      setFreightDialogOpen(false);
+      fetchFreightConfigs();
+    } catch (error: any) {
+      toast.error('Erro ao salvar configuração de frete');
+    } finally {
+      setSavingFreight(false);
+    }
+  };
+
+  const handleDeleteFreight = async (id: string) => {
+    try {
+      const { error } = await supabase.from('freight_configs').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Configuração de frete removida!');
+      fetchFreightConfigs();
+    } catch (error) {
+      toast.error('Erro ao remover configuração de frete');
+    }
   };
 
   const formatPhone = (value: string) => {
@@ -474,6 +583,148 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Freight Config */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Configurações de Frete
+                </CardTitle>
+                <CardDescription>
+                  Gerencie as opções de frete disponíveis para vendas
+                </CardDescription>
+              </div>
+              <Button onClick={() => openFreightDialog()} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Frete
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingFreight ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : freightConfigs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Truck className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p>Nenhuma configuração de frete cadastrada</p>
+                <p className="text-sm">Adicione opções de frete para usar nas vendas</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {freightConfigs.map((fc) => (
+                  <div key={fc.id} className="flex items-center justify-between p-4 rounded-lg border">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{fc.name}</p>
+                        {!fc.is_active && (
+                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Inativo</span>
+                        )}
+                      </div>
+                      {fc.description && (
+                        <p className="text-sm text-muted-foreground">{fc.description}</p>
+                      )}
+                      <p className="text-sm font-medium text-primary mt-1">
+                        R$ {fc.base_value.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => openFreightDialog(fc)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteFreight(fc.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Freight Dialog */}
+        <Dialog open={freightDialogOpen} onOpenChange={setFreightDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingFreight ? 'Editar Configuração de Frete' : 'Nova Configuração de Frete'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input
+                  value={freightForm.name}
+                  onChange={(e) => setFreightForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Sedex, PAC, Motoboy"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input
+                  value={freightForm.description}
+                  onChange={(e) => setFreightForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Descrição opcional"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Valor Base (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={freightForm.base_value}
+                    onChange={(e) => setFreightForm(prev => ({ ...prev, base_value: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Regra de Cálculo</Label>
+                  <Select
+                    value={freightForm.calculation_rule}
+                    onValueChange={(v) => setFreightForm(prev => ({ ...prev, calculation_rule: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixo</SelectItem>
+                      <SelectItem value="free">Grátis</SelectItem>
+                      <SelectItem value="by_value">Por valor</SelectItem>
+                      <SelectItem value="by_weight">Por peso</SelectItem>
+                      <SelectItem value="by_zip">Por CEP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={freightForm.is_active}
+                  onCheckedChange={(v) => setFreightForm(prev => ({ ...prev, is_active: v }))}
+                />
+                <Label>Ativo</Label>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setFreightDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveFreight} disabled={savingFreight}>
+                  {savingFreight ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
