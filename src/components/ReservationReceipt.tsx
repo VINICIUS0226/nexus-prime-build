@@ -143,7 +143,7 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
               <img
                 src={qrDataUrl}
                 alt={`QR ${code}`}
-                className="w-16 h-16 object-contain"
+                className="w-12 h-12 object-contain"
               />
             </div>
           )}
@@ -194,31 +194,13 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
           </table>
         </div>
 
-        {/* Freight / Delivery control */}
+        {/* Freight / Delivery control - informativo */}
         <div className="border-b border-dashed border-black pb-3 mb-3">
-          <p className="font-bold mb-2">CONTROLE DE FRETE / ENTREGA:</p>
+          <p className="font-bold mb-2">FRETE / ENTREGA:</p>
           <div className="text-xs space-y-1">
-            <div className="flex justify-between">
-              <span>Modalidade:</span>
-              <span>____________________</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Valor frete (R$):</span>
-              <span>____________</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Pago:</span>
-              <span>( ) SIM  ( ) NÃO</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Rastreio/OS:</span>
-              <span>____________________</span>
-            </div>
-            <div className="mt-2">
-              <div className="font-bold mb-1">Endereço (se entrega):</div>
-              <div>________________________________________</div>
-              <div>________________________________________</div>
-            </div>
+            <p className="text-[10px] text-gray-600">
+              Frete será calculado e registrado no momento da venda pelo sistema.
+            </p>
           </div>
         </div>
 
@@ -274,7 +256,7 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
                   <img
                     src={qrDataUrl}
                     alt={`QR ${code}`}
-                    className="w-16 h-16 object-contain"
+                    className="w-10 h-10 object-contain"
                   />
                 </div>
               )}
