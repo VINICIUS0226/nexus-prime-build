@@ -594,7 +594,7 @@ const Sales = () => {
     const searchLower = productSearch.toLowerCase();
     return (
       product.name.toLowerCase().includes(searchLower) ||
-      product.barcode?.toLowerCase().includes(searchLower) ||
+      (product.barcode && product.barcode.toLowerCase().includes(searchLower)) ||
       v.sku.toLowerCase().includes(searchLower) ||
       v.color?.toLowerCase().includes(searchLower) ||
       v.size?.toLowerCase().includes(searchLower)
