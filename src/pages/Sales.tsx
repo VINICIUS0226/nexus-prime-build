@@ -1181,9 +1181,9 @@ const Sales = () => {
             {selectedSale && (
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end">
-                  <Button onClick={() => handlePrint('Recibo de Venda')} variant="outline" size="sm" className="gap-2">
+                   <Button onClick={() => handlePrint('Cupom Fiscal - Venda', 'a4')} variant="outline" size="sm" className="gap-2">
                     <Printer className="h-4 w-4" />
-                    Imprimir Recibo
+                    Imprimir Cupom Fiscal
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
