@@ -1,7 +1,8 @@
-import { forwardRef, useMemo, useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
 interface Customer {
   id: string;
@@ -66,25 +67,29 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+const formatPhone = (phone: string) => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  return phone;
+};
+
 export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptProps>(
-  ({ reservation, storeConfig, labelCopies = 2 }, ref) => {
+  ({ reservation, storeConfig, labelCopies = 1 }, ref) => {
     const storeName = storeConfig?.store_name || 'Minha Loja';
-    const storeAddress = storeConfig?.store_address;
-    const storePhone = storeConfig?.store_phone;
-    const storeEmail = storeConfig?.store_email;
-    const storeCnpj = storeConfig?.store_cnpj;
+    const storeAddress = storeConfig?.store_address || '';
+    const storePhone = storeConfig?.store_phone || '';
+    const storeEmail = storeConfig?.store_email || '';
+    const storeCnpj = storeConfig?.store_cnpj || '';
 
     const code = reservation.bag_code || reservation.id.slice(0, 8).toUpperCase();
-
-    const { totalItems, totalValue } = useMemo(() => {
-      const items = reservation.reservation_items || [];
-      return {
-        totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-        totalValue: items.reduce((sum, item) => sum + item.quantity * Number(item.unit_price || 0), 0),
-      };
-    }, [reservation.reservation_items]);
+    const orderId = reservation.id.slice(0, 12).toUpperCase();
 
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+    const barcodeRef = useRef<SVGSVGElement>(null);
+
+    const totalItems = (reservation.reservation_items || []).reduce((s, i) => s + i.quantity, 0);
+    const totalValue = (reservation.reservation_items || []).reduce((s, i) => s + i.quantity * Number(i.unit_price || 0), 0);
 
     useEffect(() => {
       const encoded = JSON.stringify({
@@ -93,210 +98,175 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
         customer: reservation.customer?.full_name,
         created_at: reservation.created_at,
       });
-
-      QRCode.toDataURL(encoded, { margin: 0, scale: 4 })
+      QRCode.toDataURL(encoded, { margin: 1, scale: 3, width: 80 })
         .then((url) => setQrDataUrl(url))
         .catch(() => setQrDataUrl(null));
     }, [reservation.id, reservation.bag_code, reservation.customer?.full_name, reservation.created_at]);
+
+    useEffect(() => {
+      if (barcodeRef.current) {
+        try {
+          JsBarcode(barcodeRef.current, orderId, {
+            format: 'CODE128',
+            width: 1.5,
+            height: 50,
+            displayValue: true,
+            fontSize: 10,
+            margin: 2,
+          });
+        } catch (e) {
+          // fallback: barcode generation failed
+        }
+      }
+    }, [orderId]);
 
     const labels = Array.from({ length: Math.max(1, Math.min(labelCopies, 4)) });
 
     return (
       <div
         ref={ref}
-        className="bg-white text-black p-6 max-w-[400px] mx-auto font-mono text-sm"
-        style={{ fontFamily: 'monospace' }}
+        className="bg-white text-black max-w-[420px] mx-auto font-sans text-xs"
+        style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}
       >
-        {/* Header */}
-        <div className="border-b-2 border-dashed border-black pb-4 mb-4 text-center">
-          <h1 className="text-lg font-bold uppercase leading-tight">{storeName}</h1>
-          {storeCnpj && <p className="text-[10px]">CNPJ: {storeCnpj}</p>}
-          {storeAddress && <p className="text-[10px]">{storeAddress}</p>}
-          {(storePhone || storeEmail) && (
-            <p className="text-[10px]">{[storePhone, storeEmail].filter(Boolean).join(' | ')}</p>
-          )}
-          <p className="text-xs mt-2 font-bold">RECIBO / CONTROLE DE RESERVA</p>
-        </div>
+        {/* === ETIQUETA DE ENVIO === */}
+        <div style={{ border: '2px solid #000', padding: '0' }}>
+          {/* Top bar - Store branding */}
+          <div style={{ borderBottom: '2px solid #000', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{storeName}</div>
+              {storeCnpj && <div style={{ fontSize: '9px', color: '#666' }}>CNPJ: {storeCnpj}</div>}
+            </div>
+            {qrDataUrl && (
+              <img src={qrDataUrl} alt="QR" style={{ width: '48px', height: '48px' }} />
+            )}
+          </div>
 
-        {/* Reservation Info + QR */}
-        <div className="border-b border-dashed border-black pb-3 mb-3 flex justify-between gap-2">
-          <div className="flex-1 space-y-1">
-            <div className="flex justify-between">
-              <span>Cód. sacola:</span>
-              <span className="font-bold">{code}</span>
+          {/* Order ID + Barcode */}
+          <div style={{ borderBottom: '2px solid #000', padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div>
+                <span style={{ fontSize: '10px', color: '#666' }}>ID Reserva: </span>
+                <span style={{ fontWeight: 'bold', fontSize: '11px' }}>#{orderId}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: '#666' }}>Sacola: </span>
+                <span style={{ fontWeight: 'bold', fontSize: '11px' }}>{code}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span>Reserva:</span>
-              <span className="font-bold">#{reservation.id.slice(0, 8).toUpperCase()}</span>
+            <div style={{ textAlign: 'center', margin: '4px 0' }}>
+              <svg ref={barcodeRef} style={{ width: '100%', maxHeight: '55px' }} />
             </div>
-            <div className="flex justify-between">
-              <span>Data:</span>
-              <span>{format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Status:</span>
-              <span className="font-bold">{String(reservation.status || '').toUpperCase()}</span>
+            <div style={{ textAlign: 'center', fontSize: '9px', color: '#666' }}>
+              {format(new Date(reservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
             </div>
           </div>
-          {qrDataUrl && (
-            <div className="flex items-center justify-center">
-              <img
-                src={qrDataUrl}
-                alt={`QR ${code}`}
-                className="w-12 h-12 object-contain"
-              />
+
+          {/* Recipient section */}
+          <div style={{ borderBottom: '2px solid #000' }}>
+            <div style={{ background: '#000', color: '#fff', padding: '3px 12px', fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px' }}>
+              DESTINATÁRIO
             </div>
-          )}
-        </div>
-
-        {/* Customer Info */}
-        <div className="border-b border-dashed border-black pb-3 mb-3">
-          <p className="font-bold mb-1">CLIENTE:</p>
-          <p>{reservation.customer?.full_name || '-'}</p>
-          <p className="text-xs">{reservation.customer?.phone || '-'}</p>
-          {reservation.customer?.email && <p className="text-xs">{reservation.customer?.email}</p>}
-        </div>
-
-        {/* Items */}
-        <div className="border-b border-dashed border-black pb-3 mb-3">
-          <div className="flex justify-between mb-2">
-            <p className="font-bold">ITENS:</p>
-            <p className="text-xs">
-              {totalItems} un • {formatCurrency(totalValue)}
-            </p>
+            <div style={{ padding: '8px 12px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '2px' }}>
+                {reservation.customer?.full_name || '-'}
+              </div>
+              <div style={{ fontSize: '10px', color: '#333' }}>
+                {formatPhone(reservation.customer?.phone || '')}
+              </div>
+              {reservation.customer?.email && (
+                <div style={{ fontSize: '10px', color: '#333' }}>{reservation.customer.email}</div>
+              )}
+            </div>
           </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-dotted border-gray-400">
-                <th className="text-left py-1 w-[26px]">OK</th>
-                <th className="text-center py-1 w-[34px]">Qtd</th>
-                <th className="text-left py-1">Produto</th>
-                <th className="text-right py-1 w-[70px]">SKU</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(reservation.reservation_items || []).map((item) => {
-                const productName = item.variation?.product?.name || 'Produto';
-                const variationInfo = [item.variation?.size, item.variation?.color].filter(Boolean).join(' / ');
-                return (
-                  <tr key={item.id} className="border-b border-dotted border-gray-200">
-                    <td className="py-1">[ ]</td>
-                    <td className="text-center py-1">{item.quantity}</td>
-                    <td className="py-1">
-                      <div>{productName}</div>
-                      {variationInfo && <div className="text-[10px] text-gray-600">{variationInfo}</div>}
+
+          {/* Items summary */}
+          <div style={{ borderBottom: '2px solid #000', padding: '8px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '10px' }}>CONTEÚDO ({totalItems} itens)</span>
+              <span style={{ fontWeight: 'bold', fontSize: '10px' }}>{formatCurrency(totalValue)}</span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #ccc' }}>
+                  <th style={{ textAlign: 'left', padding: '2px 0', fontWeight: '600' }}>Produto</th>
+                  <th style={{ textAlign: 'center', padding: '2px 0', fontWeight: '600', width: '30px' }}>Qtd</th>
+                  <th style={{ textAlign: 'right', padding: '2px 0', fontWeight: '600', width: '60px' }}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(reservation.reservation_items || []).slice(0, 8).map((item) => {
+                  const productName = item.variation?.product?.name || 'Produto';
+                  const variationInfo = [item.variation?.size, item.variation?.color].filter(Boolean).join(' / ');
+                  return (
+                    <tr key={item.id} style={{ borderBottom: '1px dotted #eee' }}>
+                      <td style={{ padding: '2px 0' }}>
+                        <div>{productName}</div>
+                        {variationInfo && <div style={{ fontSize: '9px', color: '#888' }}>{variationInfo}</div>}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '2px 0' }}>{item.quantity}</td>
+                      <td style={{ textAlign: 'right', padding: '2px 0' }}>{formatCurrency(item.unit_price * item.quantity)}</td>
+                    </tr>
+                  );
+                })}
+                {(reservation.reservation_items || []).length > 8 && (
+                  <tr>
+                    <td colSpan={3} style={{ fontSize: '9px', color: '#888', padding: '2px 0' }}>
+                      + {(reservation.reservation_items || []).length - 8} itens adicionais
                     </td>
-                    <td className="text-right py-1">{item.variation?.sku || '-'}</td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Freight / Delivery control - informativo */}
-        <div className="border-b border-dashed border-black pb-3 mb-3">
-          <p className="font-bold mb-2">FRETE / ENTREGA:</p>
-          <div className="text-xs space-y-1">
-            <p className="text-[10px] text-gray-600">
-              Frete será calculado e registrado no momento da venda pelo sistema.
-            </p>
+          {/* Sender section */}
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#666', marginBottom: '2px' }}>REMETENTE:</div>
+            <div style={{ fontWeight: 'bold', fontSize: '11px' }}>{storeName}</div>
+            {storeAddress && <div style={{ fontSize: '10px' }}>{storeAddress}</div>}
+            {(storePhone || storeEmail) && (
+              <div style={{ fontSize: '10px', color: '#555' }}>
+                {[storePhone ? formatPhone(storePhone) : '', storeEmail].filter(Boolean).join(' | ')}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Notes */}
         {reservation.notes && (
-          <div className="border-b border-dashed border-black pb-3 mb-3">
-            <p className="font-bold mb-1">OBS:</p>
-            <p className="text-xs">{reservation.notes}</p>
+          <div style={{ marginTop: '8px', padding: '6px 12px', border: '1px dashed #999', fontSize: '10px' }}>
+            <span style={{ fontWeight: 'bold' }}>OBS: </span>{reservation.notes}
           </div>
         )}
 
-        {/* Internal control */}
-        <div className="border-b-2 border-dashed border-black pb-3 mb-3">
-          <p className="font-bold mb-2">CONTROLE INTERNO:</p>
-          <div className="text-xs space-y-1">
-            <div className="flex justify-between">
-              <span>Separado por:</span>
-              <span>____________________</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Conferido por:</span>
-              <span>____________________</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Retirada/Envio em:</span>
-              <span>____/____/______  ____:____</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Ass. Cliente:</span>
-              <span>____________________</span>
-            </div>
-          </div>
+        {/* Status + Date footer */}
+        <div style={{ textAlign: 'center', fontSize: '9px', color: '#999', marginTop: '6px' }}>
+          Status: {String(reservation.status || '').toUpperCase()} • Impresso em {format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
         </div>
 
-        {/* Labels */}
-        <div className="text-center text-xs mt-4">
-          <p className="font-bold mb-2">ETIQUETAS DA SACOLA</p>
-        </div>
-
-        {labels.map((_, idx) => (
-          <div key={idx} className="border-2 border-dashed border-black p-3 mb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex-1 text-left">
-                <div className="text-xl font-bold">{code}</div>
-                <div className="text-xs mt-1">{reservation.customer?.full_name || '-'}</div>
-                <div className="text-xs">{reservation.customer?.phone || '-'}</div>
-                <div className="text-[10px] mt-1">
-                  {format(new Date(reservation.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                </div>
-              </div>
-              {qrDataUrl && (
-                <div className="flex-shrink-0">
-                  <img
-                    src={qrDataUrl}
-                    alt={`QR ${code}`}
-                    className="w-10 h-10 object-contain"
-                  />
-                </div>
-              )}
+        {/* Extra label copies (cut-out bag labels) */}
+        {labels.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: 'bold', marginBottom: '8px', borderTop: '1px dashed #ccc', paddingTop: '8px' }}>
+              ✂ ETIQUETA(S) DA SACOLA
             </div>
-            <div className="border-t border-dotted border-black mt-2 pt-2 text-[10px]">
-              <div className="flex justify-between">
-                <span>Itens:</span>
-                <span className="font-bold">{totalItems} un</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Valor:</span>
-                <span className="font-bold">{formatCurrency(totalValue)}</span>
-              </div>
-            </div>
-            <div className="border-t border-dotted border-black mt-2 pt-2 text-[10px]">
-              <div className="font-bold mb-1">Conteúdo:</div>
-              {(reservation.reservation_items || []).slice(0, 10).map((item) => {
-                const productName = item.variation?.product?.name || 'Produto';
-                const variationInfo = [item.variation?.size, item.variation?.color].filter(Boolean).join(' / ');
-                const line = [productName, variationInfo].filter(Boolean).join(' - ');
-                return (
-                  <div key={item.id} className="flex justify-between">
-                    <span className="truncate pr-2" style={{ maxWidth: '260px' }}>
-                      {line}
-                    </span>
-                    <span className="font-bold">{item.quantity}x</span>
+            {labels.map((_, idx) => (
+              <div key={idx} style={{ border: '2px dashed #000', padding: '8px 10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', fontFamily: 'monospace' }}>{code}</div>
+                  <div style={{ fontSize: '10px' }}>{reservation.customer?.full_name || '-'}</div>
+                  <div style={{ fontSize: '9px', color: '#666' }}>{formatPhone(reservation.customer?.phone || '')}</div>
+                  <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>
+                    {totalItems} itens • {formatCurrency(totalValue)}
                   </div>
-                );
-              })}
-              {(reservation.reservation_items || []).length > 10 && (
-                <div className="text-[10px] text-gray-600 mt-1">+ mais itens no recibo</div>
-              )}
-            </div>
+                </div>
+                {qrDataUrl && (
+                  <img src={qrDataUrl} alt="QR" style={{ width: '36px', height: '36px' }} />
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-
-        {/* Footer */}
-        <div className="text-center text-xs mt-4">
-          <p className="mt-2 text-[10px] text-gray-500">{format(new Date(), 'dd/MM/yyyy HH:mm:ss')}</p>
-        </div>
+        )}
       </div>
     );
   }
@@ -305,4 +275,3 @@ export const ReservationReceipt = forwardRef<HTMLDivElement, ReservationReceiptP
 ReservationReceipt.displayName = 'ReservationReceipt';
 
 export default ReservationReceipt;
-
