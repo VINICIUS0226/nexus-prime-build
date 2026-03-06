@@ -412,7 +412,7 @@ const Products = () => {
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoria</Label>
                     <Select
-                      value={formData.category}
+                      value={formData.category || undefined}
                       onValueChange={(value) => setFormData({ ...formData, category: value })}
                     >
                       <SelectTrigger>
@@ -526,10 +526,10 @@ const Products = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="size">Tamanho</Label>
-                      <Select
-                        value={variationData.size}
-                        onValueChange={(value) => setVariationData({ ...variationData, size: value })}
-                      >
+                    <Select
+                      value={variationData.size || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, size: value })}
+                    >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o tamanho" />
                         </SelectTrigger>
@@ -545,10 +545,10 @@ const Products = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="color">Cor</Label>
-                      <Select
-                        value={variationData.color}
-                        onValueChange={(value) => setVariationData({ ...variationData, color: value })}
-                      >
+                    <Select
+                      value={variationData.color || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, color: value })}
+                    >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione a cor" />
                         </SelectTrigger>
