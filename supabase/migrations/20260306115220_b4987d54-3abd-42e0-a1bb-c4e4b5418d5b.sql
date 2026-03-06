@@ -1,0 +1,1 @@
+ALTER TABLE public.product_variations DROP CONSTRAINT product_variations_sku_key;
