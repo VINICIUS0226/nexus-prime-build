@@ -796,6 +796,31 @@ const ProductDetails = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        {/* Add to Cart Dialog */}
+        {product && (
+          <AddToCartDialog
+            open={addToCartDialogOpen}
+            onOpenChange={setAddToCartDialogOpen}
+            product={{
+              ...product,
+              product_images: productImages.map(img => ({
+                id: img.id,
+                image_url: img.image_url,
+                is_primary: img.is_primary,
+              })),
+            }}
+            onAddToCart={handleAddToCart}
+          />
+        )}
+
+        {/* Floating Cart */}
+        <ProductsFloatingCart
+          items={cartItems}
+          onUpdateQuantity={updateQuantity}
+          onRemoveItem={removeItem}
+          onClearCart={clearCart}
+          onCheckout={handleCheckout}
+        />
       </div>
     </DashboardLayout>
   );
