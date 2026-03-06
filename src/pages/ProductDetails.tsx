@@ -559,19 +559,10 @@ const ProductDetails = () => {
                   <Button 
                     className="flex-1 w-full"
                     disabled={getAvailableStock() === 0}
-                    onClick={() => navigate('/dashboard/sales')}
+                    onClick={() => setAddToCartDialogOpen(true)}
                   >
                     <ShoppingCart className="h-4 w-4 mr-2 shrink-0" />
-                    Vender
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 w-full"
-                    disabled={getAvailableStock() === 0}
-                    onClick={() => navigate('/dashboard/reservations')}
-                  >
-                    <Package className="h-4 w-4 mr-2 shrink-0" />
-                    Reservar
+                    Adicionar ao Carrinho
                   </Button>
                 </div>
               </CardContent>
