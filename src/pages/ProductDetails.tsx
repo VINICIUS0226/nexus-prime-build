@@ -286,6 +286,30 @@ const ProductDetails = () => {
     return images;
   };
 
+  const handleAddToCart = (items: CartItem[]) => {
+    addItems(items);
+    toast({
+      title: "Adicionado ao carrinho",
+      description: `${items.reduce((s, i) => s + i.quantity, 0)} item(ns) adicionado(s)`,
+    });
+  };
+
+  const handleCheckout = (mode: 'sale' | 'reservation') => {
+    if (cartItems.length === 0) return;
+    const cartData = cartItems.map(item => ({
+      variationId: item.variationId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }));
+    const stateData = { prefilledCart: cartData };
+    if (mode === 'sale') {
+      navigate('/dashboard/sales', { state: stateData });
+    } else {
+      navigate('/dashboard/reservations', { state: stateData });
+    }
+    clearCart();
+  };
+
   const images = allImages();
 
   const nextImage = () => {
