@@ -431,7 +431,7 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                     <FormItem>
                       <FormLabel>Categoria</FormLabel>
                       <Select
-                        value={field.value || ""}
+                        value={field.value || undefined}
                         onValueChange={field.onChange}
                         disabled={!isEditing}
                       >
@@ -705,7 +705,7 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                     <FormItem>
                       <FormLabel>Tamanho</FormLabel>
                       <Select
-                        value={field.value || ""}
+                        value={field.value || undefined}
                         onValueChange={field.onChange}
                       >
                         <FormControl>
@@ -730,7 +730,7 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                     <FormItem>
                       <FormLabel>Cor</FormLabel>
                       <Select
-                        value={field.value || ""}
+                        value={field.value || undefined}
                         onValueChange={field.onChange}
                       >
                         <FormControl>
