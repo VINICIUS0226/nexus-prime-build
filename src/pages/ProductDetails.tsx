@@ -7,11 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare } from "lucide-react";
+import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
 import { ProductEditForm } from "@/components/ProductEditForm";
+import { AddToCartDialog } from "@/components/AddToCartDialog";
+import { ProductsFloatingCart } from "@/components/ProductsFloatingCart";
+import { useCart, CartItem } from "@/contexts/CartContext";
 
 interface ProductVariation {
   id: string;
