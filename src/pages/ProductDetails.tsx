@@ -80,12 +80,14 @@ const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { items: cartItems, addItems, updateQuantity, removeItem, clearCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [salesHistory, setSalesHistory] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [addToCartDialogOpen, setAddToCartDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
