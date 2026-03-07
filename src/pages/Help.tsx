@@ -27,11 +27,19 @@ import {
 const Help = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const helpContent = [
+  const helpContent: Array<{
+    id: string;
+    icon: React.ElementType;
+    title: string;
+    searchText: string;
+    keywords: string[];
+    content: React.ReactNode;
+  }> = [
     {
       id: 'apresentacao',
       icon: BookOpen,
       title: 'Apresentação',
+      searchText: 'sistema PQUENINOS ERP vendas empreendedores organização controle gestão negócio plataforma rotinas comerciais cadastrar gerenciar clientes produtos SKU estoque registrar vendas reservas pagamentos relatórios informações análises decisões',
       content: (
         <div className="space-y-3 text-muted-foreground">
           <p>
@@ -52,6 +60,7 @@ const Help = () => {
       id: 'acesso',
       icon: LogIn,
       title: 'Acesso ao Sistema',
+      searchText: 'acesso autenticação usuário senha credenciais login logout sair administrador redefinição',
       content: (
         <div className="space-y-3 text-muted-foreground">
           <p>
@@ -72,6 +81,7 @@ const Help = () => {
       id: 'dashboard',
       icon: LayoutDashboard,
       title: 'Dashboard',
+      searchText: 'tela inicial centro comando negócio indicadores vendas hoje mês ticket médio reservas ativas gráficos faturamento formas pagamento PIX cartão produtos clientes estoque baixo',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>A tela inicial é o centro de comando do seu negócio, com visão geral em tempo real.</p>
@@ -107,6 +117,7 @@ const Help = () => {
       id: 'produtos',
       icon: Package,
       title: 'Produtos',
+      searchText: 'catálogo cadastrar editar excluir vendas reservas buscar filtrar nome categoria código barras tamanho cor preço novo produto dados custo margem lucro variações SKU quantidade estoque mínimo imagens JPG PNG WebP',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Gerenciamento do catálogo: cadastrar, editar, excluir e iniciar vendas/reservas.</p>
@@ -138,6 +149,7 @@ const Help = () => {
       id: 'clientes',
       icon: Users,
       title: 'Clientes',
+      searchText: 'gestão contas clientes perfis acesso base contatos indicadores usuários gerentes vendedores cadastrar dados pessoais nome email CPF telefone endereço CEP tipo status ativo inativo LGPD listagem buscar visualizar editar excluir',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Gestão de contas, clientes e perfis de acesso. Controle detalhado da base de contatos.</p>
@@ -168,6 +180,7 @@ const Help = () => {
       id: 'estoque',
       icon: Box,
       title: 'Estoque',
+      searchText: 'mercadorias quantidades saldos reservados entrada adicionar manual importar XML NF-e buscar SKU filtros cor tamanho status normal baixo produto variação quantidade preço custo venda tabela reservado disponível',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Controle de mercadorias, quantidades disponíveis, saldos reservados e status de cada item.</p>
@@ -200,6 +213,7 @@ const Help = () => {
       id: 'reservas',
       icon: ShoppingCart,
       title: 'Reservas',
+      searchText: 'cestas compras bloqueio temporário estoque ativas concluídas valor reservado nova reserva produtos cliente código sacola observações itens quantidade carrinho criar reserva',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Organização de cestas de compras e bloqueio temporário de itens no estoque.</p>
@@ -229,6 +243,7 @@ const Help = () => {
       id: 'vendas',
       icon: DollarSign,
       title: 'Vendas',
+      searchText: 'venda direta reserva carrinho cliente frete desconto pagamentos PIX cartão dinheiro boleto finalizar código barras subtotal total',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Núcleo financeiro: vendas rápidas ou conversão de reservas em vendas finalizadas.</p>
@@ -261,6 +276,7 @@ const Help = () => {
       id: 'pagamentos',
       icon: CreditCard,
       title: 'Pagamentos',
+      searchText: 'transações status financeiro vendas integração Asaas PIX cartão boleto automatizado',
       content: (
         <div className="space-y-3 text-muted-foreground">
           <p>
@@ -276,6 +292,7 @@ const Help = () => {
       id: 'relatorios',
       icon: BarChart3,
       title: 'Relatórios',
+      searchText: 'métricas desempenho receita vendas ticket médio novos clientes período filtro abas gráfico exportar CSV',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Análise e acompanhamento das métricas de desempenho da loja.</p>
@@ -305,6 +322,7 @@ const Help = () => {
       id: 'configuracoes',
       icon: Settings,
       title: 'Configurações',
+      searchText: 'personalização loja logo imagem dados CNPJ telefone email endereço aparência tema claro escuro cor principal frete modalidades',
       content: (
         <div className="space-y-4 text-muted-foreground">
           <p>Personalização e gestão das informações base da loja.</p>
@@ -336,13 +354,22 @@ const Help = () => {
     },
   ];
 
-  const filteredContent = searchTerm.trim()
-    ? helpContent.filter(
-        (item) =>
-          item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.keywords.some((k) => k.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : helpContent;
+  const filteredContent = (() => {
+    const term = searchTerm.trim();
+    if (!term) return helpContent;
+
+    const words = term
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length >= 2);
+
+    if (words.length === 0) return helpContent;
+
+    return helpContent.filter((item) => {
+      const searchableText = `${item.title} ${item.keywords.join(' ')} ${item.searchText}`.toLowerCase();
+      return words.some((word) => searchableText.includes(word));
+    });
+  })();
 
   return (
     <DashboardLayout>
