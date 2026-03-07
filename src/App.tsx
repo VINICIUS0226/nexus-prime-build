@@ -21,6 +21,7 @@ import Sales from "./pages/Sales";
 import Payments from "./pages/Payments";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/dashboard/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
               <Route path="/dashboard/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/dashboard/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
               <Route path="/admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/admin/stores" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/admin/users" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
