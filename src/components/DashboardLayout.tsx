@@ -16,7 +16,8 @@ import {
   Settings,
   CreditCard,
   Store,
-  ShieldCheck
+  ShieldCheck,
+  HelpCircle
 } from 'lucide-react';
 
 const navigationSections = [
@@ -47,6 +48,7 @@ const navigationSections = [
     title: 'SISTEMA',
     items: [
       { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
+      { name: 'Ajuda', href: '/dashboard/help', icon: HelpCircle },
     ]
   }
 ];
