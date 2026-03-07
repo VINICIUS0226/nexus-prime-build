@@ -150,7 +150,7 @@ const Reservations = () => {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [prefilledCart, variations]);
+  }, [prefilledCart, variations, dialogOpen]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -321,10 +321,12 @@ const Reservations = () => {
           .single();
 
         if (freshVar) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('product_variations')
             .update({ reserved_quantity: freshVar.reserved_quantity + item.quantity })
             .eq('id', item.variation.id);
+
+          if (updateError) throw updateError;
         }
       }
 
@@ -357,21 +359,23 @@ const Reservations = () => {
     try {
       // Libera o estoque lendo o valor mais recente do banco
       for (const item of reservation.reservation_items || []) {
-        if (item.variation) {
-          const { data: freshVar } = await supabase
-            .from('product_variations')
-            .select('reserved_quantity')
-            .eq('id', item.variation_id)
-            .single();
+        if (!item.variation_id) continue;
 
-          if (freshVar) {
-            await supabase
-              .from('product_variations')
-              .update({ 
-                reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
-              })
-              .eq('id', item.variation_id);
-          }
+        const { data: freshVar } = await supabase
+          .from('product_variations')
+          .select('reserved_quantity')
+          .eq('id', item.variation_id)
+          .single();
+
+        if (freshVar) {
+          const { error: updateError } = await supabase
+            .from('product_variations')
+            .update({ 
+              reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
+            })
+            .eq('id', item.variation_id);
+
+          if (updateError) throw updateError;
         }
       }
 

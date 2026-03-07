@@ -216,7 +216,7 @@ const Sales = () => {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [prefilledCart, variations]);
+  }, [prefilledCart, variations, dialogOpen]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -309,7 +309,6 @@ const Sales = () => {
         setSaleItems([]);
       }
     } catch (error: any) {
-      console.error('Error fetching sale items:', error);
       setSaleItems([]);
     }
   };
@@ -325,11 +324,13 @@ const Sales = () => {
     setSelectedReservation(reservation.id);
     setSelectedCustomer(reservation.customer_id);
     
-    const cartItems: CartItem[] = (reservation.reservation_items || []).map(item => ({
-      variation: item.variation as ProductVariation,
-      quantity: item.quantity,
-      unit_price: item.unit_price
-    }));
+    const cartItems: CartItem[] = (reservation.reservation_items || [])
+      .filter(item => item.variation)
+      .map(item => ({
+        variation: item.variation as ProductVariation,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+      }));
     setCart(cartItems);
   };
 
@@ -523,22 +524,19 @@ const Sales = () => {
           .single();
 
         if (freshVar) {
-          if (saleMode === 'reservation') {
-            await supabase
-              .from('product_variations')
-              .update({
+          const updatePayload = saleMode === 'reservation'
+            ? {
                 stock_quantity: freshVar.stock_quantity - item.quantity,
                 reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
-              })
-              .eq('id', item.variation.id);
-          } else {
-            await supabase
-              .from('product_variations')
-              .update({
-                stock_quantity: freshVar.stock_quantity - item.quantity
-              })
-              .eq('id', item.variation.id);
-          }
+              }
+            : { stock_quantity: freshVar.stock_quantity - item.quantity };
+
+          const { error: updateError } = await supabase
+            .from('product_variations')
+            .update(updatePayload)
+            .eq('id', item.variation.id);
+
+          if (updateError) throw updateError;
         }
       }
 
