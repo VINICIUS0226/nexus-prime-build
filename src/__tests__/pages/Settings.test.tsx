@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Settings from '../../pages/Settings';
 import { PRESET_COLORS } from '../../hooks/useTheme';

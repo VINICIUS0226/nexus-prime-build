@@ -17,11 +17,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
-  Minus, ChevronLeft, ChevronRight
+  Minus, ChevronLeft, ChevronRight, Printer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatPhone } from '@/lib/utils';
+import { usePrint } from '@/hooks/usePrint';
+import { useStoreConfig } from '@/hooks/useStoreConfig';
+import { ReservationReceipt } from '@/components/ReservationReceipt';
 
 interface Customer {
   id: string;
@@ -92,6 +95,8 @@ const Reservations = () => {
   const location = useLocation();
   const prefilledCart = (location.state as any)?.prefilledCart;
   const prefilledCustomer = (location.state as any)?.prefilledCustomer;
+  const { printRef, handlePrint } = usePrint();
+  const { config: storeConfig } = useStoreConfig();
   
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -121,7 +126,6 @@ const Reservations = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
       const cartItems: CartItem[] = [];
@@ -137,10 +141,12 @@ const Reservations = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
+        // Set prefilled customer if available
         if (prefilledCustomer) {
           setSelectedCustomer(prefilledCustomer.id);
         }
         setDialogOpen(true);
+        // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
       }
     }
@@ -260,7 +266,7 @@ const Reservations = () => {
     }
 
     try {
-      // 1. Just-In-Time Validation: Checagem rigorosa de estoque milissegundos antes de inserir
+      // 1. Just-In-Time Validation: Checagem rigorosa de estoque antes de inserir
       for (const item of cart) {
         const { data: currentVar } = await supabase
           .from('product_variations')
@@ -369,6 +375,7 @@ const Reservations = () => {
         }
       }
 
+      // Update reservation status
       const { error } = await supabase
         .from('reservations')
         .update({ status: 'cancelled' })
@@ -450,6 +457,7 @@ const Reservations = () => {
     ) || 0;
   };
 
+  // Stats
   const activeReservations = reservations.filter(r => r.status === 'active').length;
   const completedReservations = reservations.filter(r => r.status === 'completed').length;
   const totalReservedValue = reservations
@@ -459,6 +467,7 @@ const Reservations = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
           <p className="text-muted-foreground mt-2">
@@ -513,7 +522,7 @@ const Reservations = () => {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Nova Reserva
               </Button>
@@ -556,15 +565,15 @@ const Reservations = () => {
                                 <img 
                                   src={variation.product.image_url} 
                                   alt={variation.product?.name}
-                                  className="w-12 h-12 object-cover rounded shrink-0"
+                                  className="w-12 h-12 object-cover rounded"
                                 />
                               ) : (
-                                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center shrink-0">
+                                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
                                   <Package className="h-6 w-6 text-muted-foreground" />
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-sm line-clamp-1">{variation.product?.name}</p>
+                                <p className="font-medium text-sm">{variation.product?.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {variation.size && `Tam: ${variation.size}`}
                                   {variation.size && variation.color && ' | '}
@@ -575,8 +584,8 @@ const Reservations = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2 ml-2">
-                              <span className="font-semibold text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">
                                 {formatCurrency(variation.product?.selling_price || 0)}
                               </span>
                               <Button
@@ -604,7 +613,7 @@ const Reservations = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {formatPhone(customer.phone)}
+                            {customer.full_name} - {customer.phone}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -652,49 +661,45 @@ const Reservations = () => {
                         {cart.map(item => (
                           <div 
                             key={item.variation.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2"
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded"
                           >
                             <div className="flex-1">
-                              <p className="text-sm font-medium line-clamp-1">{item.variation.product?.name}</p>
+                              <p className="text-sm font-medium">{item.variation.product?.name}</p>
                               <p className="text-xs text-muted-foreground">
                                 {item.variation.size && `${item.variation.size}`}
                                 {item.variation.size && item.variation.color && ' / '}
                                 {item.variation.color}
                               </p>
                             </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-7 w-7 sm:h-6 sm:w-6"
-                                  onClick={() => updateCartQuantity(item.variation.id, -1)}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-7 w-7 sm:h-6 sm:w-6"
-                                  onClick={() => updateCartQuantity(item.variation.id, 1)}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
-                                  {formatCurrency(item.unit_price * item.quantity)}
-                                </span>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 sm:h-6 sm:w-6 text-destructive shrink-0"
-                                  onClick={() => removeFromCart(item.variation.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
-                                </Button>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => updateCartQuantity(item.variation.id, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm">{item.quantity}</span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                onClick={() => updateCartQuantity(item.variation.id, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-20 text-right text-sm font-medium">
+                                {formatCurrency(item.unit_price * item.quantity)}
+                              </span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => removeFromCart(item.variation.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -714,7 +719,7 @@ const Reservations = () => {
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1 w-full"
+                      className="flex-1"
                       onClick={() => {
                         setDialogOpen(false);
                         resetForm();
@@ -723,7 +728,7 @@ const Reservations = () => {
                       Cancelar
                     </Button>
                     <Button 
-                      className="flex-1 w-full bg-primary hover:bg-primary/90"
+                      className="flex-1 bg-primary hover:bg-primary/90"
                       onClick={handleCreateReservation}
                       disabled={!selectedCustomer || cart.length === 0}
                     >
@@ -736,7 +741,7 @@ const Reservations = () => {
           </Dialog>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
             </SelectTrigger>
             <SelectContent>
@@ -926,32 +931,43 @@ const Reservations = () => {
 
         {/* Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
-            <DialogHeader className="flex-shrink-0 pr-6">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Detalhes da Reserva</DialogTitle>
             </DialogHeader>
             {selectedReservation && (
               <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <Label className="text-muted-foreground text-xs">Cliente</Label>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => handlePrint('Recibo de Reserva')}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir Recibo / Etiquetas
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Cliente</Label>
                     <p className="font-medium">{selectedReservation.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                     {formatPhone(selectedReservation.customer?.phone)}
                     </p>
                   </div>
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <Label className="text-muted-foreground text-xs">Código da Sacola</Label>
+                  <div>
+                    <Label className="text-muted-foreground">Código da Sacola</Label>
                     <p className="font-medium font-mono">
                       {selectedReservation.bag_code || selectedReservation.id.slice(0, 8)}
                     </p>
                   </div>
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <Label className="text-muted-foreground text-xs">Status</Label>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
                     <div className="mt-1">{getStatusBadge(selectedReservation.status)}</div>
                   </div>
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <Label className="text-muted-foreground text-xs">Data</Label>
+                  <div>
+                    <Label className="text-muted-foreground">Data</Label>
                     <p className="font-medium">
                       {format(new Date(selectedReservation.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
@@ -961,7 +977,7 @@ const Reservations = () => {
                 {selectedReservation.notes && (
                   <div>
                     <Label className="text-muted-foreground">Observações</Label>
-                    <p className="text-sm p-3 bg-muted/50 rounded-lg border">{selectedReservation.notes}</p>
+                    <p className="text-sm">{selectedReservation.notes}</p>
                   </div>
                 )}
 
@@ -969,31 +985,31 @@ const Reservations = () => {
                   <Label className="text-muted-foreground mb-2 block">
                     Itens da Reserva ({selectedReservation.reservation_items?.length || 0})
                   </Label>
-                  <div className="border rounded-lg overflow-x-auto">
+                  <div className="border rounded-lg overflow-hidden max-h-[250px] overflow-y-auto">
                     <Table>
-                      <TableHeader className="bg-muted/50">
+                      <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead className="whitespace-nowrap">Produto</TableHead>
-                          <TableHead className="whitespace-nowrap">Variação</TableHead>
-                          <TableHead className="text-center whitespace-nowrap">Qtd</TableHead>
-                          <TableHead className="text-right whitespace-nowrap">Valor Unit.</TableHead>
-                          <TableHead className="text-right whitespace-nowrap">Subtotal</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead>Variação</TableHead>
+                          <TableHead className="text-center">Qtd</TableHead>
+                          <TableHead className="text-right">Valor Unit.</TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedReservation.reservation_items?.map(item => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium min-w-[150px]">
+                            <TableCell className="font-medium">
                               {(item.variation as any)?.product?.name || 'Produto'}
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            <TableCell className="text-sm text-muted-foreground">
                               {(item.variation as any)?.size && `Tam: ${(item.variation as any).size}`}
                               {(item.variation as any)?.size && (item.variation as any)?.color && ' | '}
                               {(item.variation as any)?.color && `Cor: ${(item.variation as any).color}`}
                             </TableCell>
                             <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(item.unit_price)}</TableCell>
-                            <TableCell className="text-right font-medium whitespace-nowrap">
+                            <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                            <TableCell className="text-right font-medium">
                               {formatCurrency(item.unit_price * item.quantity)}
                             </TableCell>
                           </TableRow>
@@ -1003,7 +1019,7 @@ const Reservations = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t flex-shrink-0 mt-4">
+                <div className="flex justify-between items-center pt-2 border-t flex-shrink-0">
                   <span className="text-lg font-semibold">Total da Reserva:</span>
                   <span className="text-2xl font-bold text-primary">
                     {formatCurrency(getReservationTotal(selectedReservation))}
@@ -1011,10 +1027,10 @@ const Reservations = () => {
                 </div>
 
                 {selectedReservation.status === 'active' && (
-                  <div className="flex flex-col sm:flex-row gap-2 pt-4">
+                  <div className="flex gap-2 pt-2">
                     <Button 
                       variant="destructive" 
-                      className="flex-1 w-full"
+                      className="flex-1"
                       onClick={() => {
                         openCancelDialog(selectedReservation);
                         setDetailsOpen(false);
@@ -1024,7 +1040,7 @@ const Reservations = () => {
                       Cancelar Reserva
                     </Button>
                     <Button 
-                      className="flex-1 w-full bg-success text-success-foreground hover:bg-success/90"
+                      className="flex-1 bg-success text-success-foreground hover:bg-success/90"
                       onClick={() => {
                         handleConvertToSale(selectedReservation);
                         setDetailsOpen(false);
@@ -1060,6 +1076,17 @@ const Reservations = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Hidden receipt for printing */}
+        <div className="hidden">
+          {selectedReservation && (
+            <ReservationReceipt
+              ref={printRef}
+              reservation={selectedReservation}
+              storeConfig={storeConfig}
+            />
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

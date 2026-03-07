@@ -38,6 +38,7 @@ interface Product {
   id: string;
   name: string;
   description: string | null;
+  barcode: string | null;
   selling_price: number | null;
   image_url: string | null;
 }
@@ -123,10 +124,13 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   bank_slip: { label: 'Boleto', icon: Receipt }
 };
 
-
+// Utility to sanitize and validate numeric inputs
 const sanitizeNumericInput = (value: string): number => {
+  // Remove leading zeros except for decimals (e.g., "0.5")
   let cleaned = value.replace(/^0+(?=\d)/, '');
+  // Replace comma with dot for decimal
   cleaned = cleaned.replace(',', '.');
+  // Parse and ensure non-negative
   const num = parseFloat(cleaned);
   return isNaN(num) || num < 0 ? 0 : Math.round(num * 100) / 100;
 };
@@ -154,16 +158,20 @@ const Sales = () => {
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Form state
   const [saleMode, setSaleMode] = useState<'direct' | 'reservation'>('direct');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [selectedReservation, setSelectedReservation] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState(0);
   const [freightValue, setFreightValue] = useState(0);
+  const [selectedFreightConfig, setSelectedFreightConfig] = useState<string>('none');
+  const [freightConfigs, setFreightConfigs] = useState<Array<{ id: string; name: string; base_value: number; description: string | null; calculation_rule: string }>>([]);
   const [notes, setNotes] = useState('');
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [barcodeInput, setBarcodeInput] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -183,6 +191,7 @@ const Sales = () => {
     }
   }, [reservationIdParam, reservations]);
 
+  // Load prefilled cart from products page
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
       const cartItems: CartItem[] = [];
@@ -198,10 +207,12 @@ const Sales = () => {
       }
       if (cartItems.length > 0) {
         setCart(cartItems);
+        // Set prefilled customer if available
         if (prefilledCustomer) {
           setSelectedCustomer(prefilledCustomer.id);
         }
         setDialogOpen(true);
+        // Clear location state to prevent re-loading on navigation
         window.history.replaceState({}, document.title);
       }
     }
@@ -210,7 +221,7 @@ const Sales = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [salesRes, customersRes, variationsRes, reservationsRes] = await Promise.all([
+      const [salesRes, customersRes, variationsRes, reservationsRes, freightRes] = await Promise.all([
         supabase
           .from('sales')
           .select(`
@@ -224,7 +235,7 @@ const Sales = () => {
           .from('product_variations')
           .select(`
             *,
-            product:products(id, name, description, selling_price, image_url)
+            product:products(id, name, description, barcode, selling_price, image_url)
           `),
         supabase
           .from('reservations')
@@ -239,7 +250,12 @@ const Sales = () => {
               )
             )
           `)
-          .eq('status', 'active')
+          .eq('status', 'active'),
+        supabase
+          .from('freight_configs')
+          .select('id, name, base_value, description, calculation_rule')
+          .eq('is_active', true)
+          .order('name')
       ]);
 
       if (salesRes.error) throw salesRes.error;
@@ -251,6 +267,7 @@ const Sales = () => {
       setCustomers(customersRes.data || []);
       setVariations(variationsRes.data as any || []);
       setReservations(reservationsRes.data as any || []);
+      setFreightConfigs(freightRes.data || []);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -265,6 +282,7 @@ const Sales = () => {
   const fetchSaleItems = async (sale: Sale) => {
     try {
       if (sale.reservation_id) {
+        // Fetch from reservation_items if sale was from a reservation
         const { data, error } = await supabase
           .from('reservation_items')
           .select(`
@@ -286,6 +304,8 @@ const Sales = () => {
         }));
         setSaleItems(items);
       } else {
+        // For direct sales, we need to look at what was in the cart at time of sale
+        // Since we don't have a sale_items table, we'll show the totals only
         setSaleItems([]);
       }
     } catch (error: any) {
@@ -384,6 +404,7 @@ const Sales = () => {
   const getTotalPayments = () => payments.reduce((sum, p) => sum + p.amount, 0);
 
   const handleCreateSale = async () => {
+    // Prevent double submissions
     if (isSubmitting) return;
 
     if (!selectedCustomer) {
@@ -411,9 +432,11 @@ const Sales = () => {
       return;
     }
 
+    // Set submitting state to prevent multiple clicks
     setIsSubmitting(true);
 
     try {
+      // For reservation sales, verify reservation is still active before proceeding
       if (saleMode === 'reservation' && selectedReservation) {
         const { data: reservationCheck, error: checkError } = await supabase
           .from('reservations')
@@ -448,7 +471,6 @@ const Sales = () => {
           .single();
 
         if (currentVar) {
-          // Se for venda direta, avalia o estoque livre. Se for reserva, a quantidade já está garantida no reserved_quantity
           const availableNow = saleMode === 'reservation' 
             ? currentVar.stock_quantity 
             : currentVar.stock_quantity - currentVar.reserved_quantity;
@@ -468,6 +490,7 @@ const Sales = () => {
           created_by: user?.id,
           subtotal: getSubtotal(),
           freight_value: freightValue,
+          freight_config_id: selectedFreightConfig !== 'none' ? selectedFreightConfig : null,
           discount: discount,
           total: totalAmount,
           notes: notes || null
@@ -519,6 +542,7 @@ const Sales = () => {
         }
       }
 
+      // Update reservation status if from reservation
       if (saleMode === 'reservation' && selectedReservation) {
         await supabase
           .from('reservations')
@@ -553,9 +577,44 @@ const Sales = () => {
     setCart([]);
     setDiscount(0);
     setFreightValue(0);
+    setSelectedFreightConfig('none');
     setNotes('');
     setPayments([]);
     setProductSearch('');
+  };
+
+  const handleBarcodeKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+
+    const code = barcodeInput.trim();
+    if (!code) return;
+
+    const matches = variations.filter((v) => {
+      const product = v.product;
+      return v.sku === code || product?.barcode === code;
+    });
+
+    if (matches.length === 0) {
+      toast({
+        title: 'Produto não encontrado',
+        description: `Nenhum produto ou variação encontrada para o código "${code}".`,
+        variant: 'destructive',
+      });
+      setBarcodeInput('');
+      return;
+    }
+
+    if (matches.length > 1) {
+      toast({
+        title: 'Múltiplas variações encontradas',
+        description:
+          'Mais de uma variação corresponde ao código informado. A primeira variação encontrada foi adicionada ao carrinho. Refine pela busca se necessário.',
+      });
+    }
+
+    addToCart(matches[0]);
+    setBarcodeInput('');
   };
 
   const filteredVariations = variations.filter(v => {
@@ -564,6 +623,7 @@ const Sales = () => {
     const searchLower = productSearch.toLowerCase();
     return (
       product.name.toLowerCase().includes(searchLower) ||
+      (product.barcode && product.barcode.toLowerCase().includes(searchLower)) ||
       v.sku.toLowerCase().includes(searchLower) ||
       v.color?.toLowerCase().includes(searchLower) ||
       v.size?.toLowerCase().includes(searchLower)
@@ -605,6 +665,7 @@ const Sales = () => {
     return <Badge variant="outline">Pendente</Badge>;
   };
 
+  // Stats
   const todaySales = sales.filter(s => new Date(s.created_at).toDateString() === new Date().toDateString());
   const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
   const monthTotal = sales
@@ -618,6 +679,7 @@ const Sales = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Vendas</h1>
           <p className="text-muted-foreground mt-2">
@@ -674,12 +736,11 @@ const Sales = () => {
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
                 <Plus className="mr-2 h-5 w-5" />
                 Nova Venda
               </Button>
             </DialogTrigger>
-            
             <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
@@ -697,7 +758,7 @@ const Sales = () => {
                   <TabsTrigger value="reservation">De Reserva</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="reservation" className="space-y-4 mt-4">
+                <TabsContent value="reservation" className="space-y-4">
                   <div className="space-y-2">
                     <Label>Selecionar Reserva Ativa</Label>
                     <Select value={selectedReservation} onValueChange={(id) => {
@@ -718,17 +779,29 @@ const Sales = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="direct" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Buscar Produtos</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <TabsContent value="direct" className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Código de Barras / SKU (leitor)</Label>
                       <Input
-                        placeholder="Nome, SKU, cor ou tamanho..."
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        className="pl-10"
+                        placeholder="Aproxime o leitor e pressione Enter..."
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeKeyDown}
+                        autoComplete="off"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Buscar Produtos</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Nome, SKU, cor ou tamanho..."
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -750,10 +823,10 @@ const Sales = () => {
                                 <img 
                                   src={variation.product.image_url} 
                                   alt={variation.product?.name}
-                                  className="w-10 h-10 object-cover rounded shrink-0"
+                                  className="w-10 h-10 object-cover rounded"
                                 />
                               ) : (
-                                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
+                                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
                                   <Package className="h-5 w-5 text-muted-foreground" />
                                 </div>
                               )}
@@ -764,8 +837,8 @@ const Sales = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-2">
-                              <span className="font-semibold text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">
                                 R$ {variation.product?.selling_price?.toFixed(2)}
                               </span>
                               <Button
@@ -814,73 +887,91 @@ const Sales = () => {
                         {saleMode === 'reservation' ? 'Selecione uma reserva' : 'Adicione produtos'}
                       </p>
                     ) : (
-                      <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                        {cart.map(item => (
-                          <div 
-                            key={item.variation.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2"
-                          >
-                            <div className="flex-1">
-                              <p className="text-sm font-medium line-clamp-1">{item.variation.product?.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
-                              </p>
-                            </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-7 w-7 sm:h-6 sm:w-6"
-                                  onClick={() => updateCartQuantity(item.variation.id, -1)}
-                                  disabled={saleMode === 'reservation'}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  className="h-7 w-7 sm:h-6 sm:w-6"
-                                  onClick={() => updateCartQuantity(item.variation.id, 1)}
-                                  disabled={saleMode === 'reservation'}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {cart.map((item) => {
+                          return (
+                            <div
+                              key={item.variation.id}
+                              className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                            >
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{item.variation.product?.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
+                                </p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
-                                  R$ {(item.unit_price * item.quantity).toFixed(2)}
-                                </span>
-                                {saleMode === 'direct' && (
+                              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                <div className="flex items-center gap-1">
                                   <Button
                                     size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 sm:h-6 sm:w-6 text-destructive shrink-0"
-                                    onClick={() => removeFromCart(item.variation.id)}
+                                    variant="outline"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
+                                    onClick={() => updateCartQuantity(item.variation.id, -1)}
+                                    disabled={saleMode === 'reservation'}
                                   >
-                                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                                    <Minus className="h-3 w-3" />
                                   </Button>
-                                )}
+                                  <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
+                                    onClick={() => updateCartQuantity(item.variation.id, 1)}
+                                    disabled={saleMode === 'reservation'}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
+                                    R$ {(item.unit_price * item.quantity).toFixed(2)}
+                                  </span>
+                                  {saleMode === 'direct' && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-destructive"
+                                      onClick={() => removeFromCart(item.variation.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Frete (R$)</Label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={freightValue || ''}
-                        onChange={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
-                        onBlur={(e) => setFreightValue(sanitizeNumericInput(e.target.value))}
-                      />
+                      <Label>Frete</Label>
+                      <Select
+                        value={selectedFreightConfig}
+                        onValueChange={(value) => {
+                          setSelectedFreightConfig(value);
+                          if (value === 'none') {
+                            setFreightValue(0);
+                          } else {
+                            const config = freightConfigs.find(f => f.id === value);
+                            if (config) setFreightValue(config.base_value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o frete" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem frete</SelectItem>
+                          {freightConfigs.map(fc => (
+                            <SelectItem key={fc.id} value={fc.id}>
+                              {fc.name} - R$ {fc.base_value.toFixed(2)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Desconto (R$)</Label>
@@ -951,7 +1042,7 @@ const Sales = () => {
                               value={payment.method}
                               onValueChange={(v) => updatePayment(index, 'method', v)}
                             >
-                              <SelectTrigger className="w-full sm:w-[140px]">
+                              <SelectTrigger className="w-[140px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -960,26 +1051,23 @@ const Sales = () => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="0,00"
-                                value={payment.amount || ''}
-                                onChange={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
-                                onBlur={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive shrink-0"
-                                onClick={() => removePayment(index)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0,00"
+                              value={payment.amount || ''}
+                              onChange={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
+                              onBlur={(e) => updatePayment(index, 'amount', sanitizeNumericInput(e.target.value))}
+                              className="flex-1"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() => removePayment(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         ))}
                         
@@ -990,7 +1078,7 @@ const Sales = () => {
                           </span>
                         </div>
                         {Math.abs(getTotalPayments() - getTotal()) > 0.01 && (
-                          <p className="text-xs text-destructive text-right">
+                          <p className="text-xs text-destructive">
                             {getTotalPayments() < getTotal() 
                               ? `Faltam R$ ${(getTotal() - getTotalPayments()).toFixed(2)}`
                               : `Excesso de R$ ${(getTotalPayments() - getTotal()).toFixed(2)}`
@@ -1004,7 +1092,7 @@ const Sales = () => {
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1 w-full"
+                      className="flex-1"
                       onClick={() => {
                         setDialogOpen(false);
                         resetForm();
@@ -1013,7 +1101,7 @@ const Sales = () => {
                       Cancelar
                     </Button>
                     <Button 
-                      className="flex-1 w-full bg-success text-success-foreground hover:bg-success/90"
+                      className="flex-1 bg-success text-success-foreground hover:bg-success/90"
                       onClick={handleCreateSale}
                       disabled={!selectedCustomer || cart.length === 0 || payments.length === 0 || isSubmitting}
                     >
@@ -1036,7 +1124,7 @@ const Sales = () => {
           </Dialog>
 
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filtrar por data" />
             </SelectTrigger>
             <SelectContent>
@@ -1199,27 +1287,26 @@ const Sales = () => {
 
         {/* Sale Details Dialog */}
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="sm:max-w-2xl w-[95vw]">
+          <DialogContent className="max-w-2xl">
             <DialogHeader className="pr-12">
               <DialogTitle>Detalhes da Venda #{selectedSale?.id.slice(0, 8)}</DialogTitle>
             </DialogHeader>
             {selectedSale && (
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end">
-                  <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
+                   <Button onClick={() => handlePrint('Cupom Fiscal - Venda', 'a4')} variant="outline" size="sm" className="gap-2">
                     <Printer className="h-4 w-4" />
-                    Imprimir Recibo
+                    Imprimir Cupom Fiscal
                   </Button>
                 </div>
-                
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3 rounded-lg border">
                     <Label className="text-muted-foreground text-xs">Cliente</Label>
                     <p className="font-medium">{selectedSale.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">{formatPhone(selectedSale.customer?.phone || '')}</p>
                   </div>
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <Label className="text-muted-foreground text-xs">Data</Label>
+                  <div>
+                    <Label className="text-muted-foreground">Data</Label>
                     <p className="font-medium">
                       {format(new Date(selectedSale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
@@ -1229,17 +1316,17 @@ const Sales = () => {
                 {saleItems.length > 0 && (
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Itens da Venda</Label>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-lg p-2">
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
                       {saleItems.map((item, index) => (
-                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 bg-muted/50 rounded gap-2">
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                           <div>
                             <p className="font-medium text-sm">{item.product_name}</p>
                             {item.variation_info && (
                               <p className="text-xs text-muted-foreground">{item.variation_info}</p>
                             )}
                           </div>
-                          <div className="text-left sm:text-right flex justify-between sm:block">
-                            <p className="text-sm text-muted-foreground">{item.quantity}x R$ {item.unit_price.toFixed(2)}</p>
+                          <div className="text-right">
+                            <p className="text-sm">{item.quantity}x R$ {item.unit_price.toFixed(2)}</p>
                             <p className="font-medium text-sm">R$ {(item.quantity * item.unit_price).toFixed(2)}</p>
                           </div>
                         </div>
@@ -1251,7 +1338,7 @@ const Sales = () => {
                 {selectedSale.notes && (
                   <div>
                     <Label className="text-muted-foreground">Observações</Label>
-                    <p className="text-sm p-3 bg-muted/50 rounded-lg border">{selectedSale.notes}</p>
+                    <p className="text-sm">{selectedSale.notes}</p>
                   </div>
                 )}
 
@@ -1282,12 +1369,12 @@ const Sales = () => {
                     {selectedSale.payments?.map(payment => {
                       const PaymentIcon = paymentMethodLabels[payment.method]?.icon || CreditCard;
                       return (
-                        <div key={payment.id} className="flex items-center justify-between p-3 border bg-muted/50 rounded">
+                        <div key={payment.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                           <div className="flex items-center gap-2">
                             <PaymentIcon className="h-4 w-4" />
-                            <span className="text-sm font-medium">{paymentMethodLabels[payment.method]?.label || payment.method}</span>
+                            <span>{paymentMethodLabels[payment.method]?.label || payment.method}</span>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
                             <span className="font-medium">R$ {payment.amount.toFixed(2)}</span>
                             <Badge variant={payment.status === 'approved' ? 'default' : 'outline'} className={payment.status === 'approved' ? 'bg-success' : ''}>
                               {payment.status === 'approved' ? 'Pago' : 'Pendente'}
