@@ -434,12 +434,22 @@ const Products = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoria</Label>
-                    <Input
-                      id="category"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="Digite a categoria do produto"
-                    />
+                    <Select
+                      value={formData.category || undefined}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["Vestidos", "Blusas", "Camisetas", "Calças", "Shorts", "Saias",
+                          "Jaquetas", "Casacos", "Moletons", "Conjuntos", "Macacões",
+                          "Lingerie", "Pijamas", "Acessórios", "Bolsas", "Calçados",
+                          "Jeans", "Leggings", "Cropped", "Body", "Outros"].map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -539,21 +549,43 @@ const Products = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="size">Tamanho</Label>
-                      <Input
-                        id="size"
-                        value={variationData.size}
-                        onChange={(e) => setVariationData({ ...variationData, size: e.target.value })}
-                        placeholder="Ex: P, M, G"
-                      />
+                    <Select
+                      value={variationData.size || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, size: value })}
+                    >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tamanho" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["PP", "P", "M", "G", "GG", "XG", "XXG",
+                            "01", "02", "04", "06", "08", "10", "12", "14", "16",
+                            "34", "36", "38", "40", "42", "44", "46", "48", "50",
+                            "Único"].map((size) => (
+                            <SelectItem key={size} value={size}>{size}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="color">Cor</Label>
-                      <Input
-                        id="color"
-                        value={variationData.color}
-                        onChange={(e) => setVariationData({ ...variationData, color: e.target.value })}
-                        placeholder="Ex: Azul, Vermelho"
-                      />
+                    <Select
+                      value={variationData.color || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, color: value })}
+                    >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a cor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Preto", "Branco", "Cinza", "Azul", "Azul Marinho", "Azul Claro",
+                            "Vermelho", "Rosa", "Rosa Claro", "Pink", "Roxo", "Lilás",
+                            "Verde", "Verde Escuro", "Verde Claro", "Amarelo", "Laranja",
+                            "Marrom", "Bege", "Creme", "Caramelo", "Vinho", "Bordô",
+                            "Dourado", "Prata", "Nude", "Coral", "Terracota", "Off-White",
+                            "Estampado", "Multicolor", "Jeans", "Animal Print", "Floral"].map((color) => (
+                            <SelectItem key={color} value={color}>{color}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="min_stock_level">Estoque Mínimo</Label>

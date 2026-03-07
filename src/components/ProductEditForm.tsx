@@ -9,6 +9,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Opções predefinidas
+const CATEGORY_OPTIONS = [
+  "Vestidos", "Blusas", "Camisetas", "Calças", "Shorts", "Saias",
+  "Jaquetas", "Casacos", "Moletons", "Conjuntos", "Macacões",
+  "Lingerie", "Pijamas", "Acessórios", "Bolsas", "Calçados",
+  "Jeans", "Leggings", "Cropped", "Body", "Outros"
+];
+
+const SIZE_OPTIONS = [
+  "PP", "P", "M", "G", "GG", "XG", "XXG",
+  "01", "02", "04", "06", "08", "10", "12", "14", "16",
+  "34", "36", "38", "40", "42", "44", "46", "48", "50",
+  "Único"
+];
+
+const COLOR_OPTIONS = [
+  "Preto", "Branco", "Cinza", "Azul", "Azul Marinho", "Azul Claro",
+  "Vermelho", "Rosa", "Rosa Claro", "Pink", "Roxo", "Lilás",
+  "Verde", "Verde Escuro", "Verde Claro", "Amarelo", "Laranja",
+  "Marrom", "Bege", "Creme", "Caramelo", "Vinho", "Bordô",
+  "Dourado", "Prata", "Nude", "Coral", "Terracota", "Off-White",
+  "Estampado", "Multicolor", "Jeans", "Animal Print", "Floral"
+];
 import { 
   Dialog,
   DialogContent,
@@ -405,14 +430,22 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoria</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""}
-                          disabled={!isEditing}
-                          placeholder="Ex: Vestidos"
-                        />
-                      </FormControl>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                        disabled={!isEditing}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORY_OPTIONS.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -671,13 +704,21 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tamanho</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""}
-                          placeholder="Ex: P, M, G, GG"
-                        />
-                      </FormControl>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o tamanho" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {SIZE_OPTIONS.map((size) => (
+                            <SelectItem key={size} value={size}>{size}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -688,13 +729,21 @@ export const ProductEditForm = ({ product, onProductUpdated }: ProductEditFormPr
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Cor</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          value={field.value || ""}
-                          placeholder="Ex: Azul, Vermelho"
-                        />
-                      </FormControl>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a cor" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {COLOR_OPTIONS.map((color) => (
+                            <SelectItem key={color} value={color}>{color}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
