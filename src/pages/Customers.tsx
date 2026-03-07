@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { formatPhone } from '@/lib/utils';
 
 type CustomerType = 'client' | 'seller' | 'manager';
 
@@ -30,6 +32,7 @@ interface Customer {
   state: string | null;
   data_consent: boolean;
   user_type: CustomerType;
+  created_at?: string;
 }
 
 const USER_TYPE_LABELS: Record<CustomerType, string> = {
@@ -56,6 +59,8 @@ const Customers = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -90,9 +95,28 @@ const Customers = () => {
           city: data.localidade || '',
           state: data.uf || '',
         }));
+      } else {
+        // Se a API retornar erro (CEP não existe), limpa os campos para evitar envios incorretos
+        toast({
+          title: "CEP não encontrado",
+          description: "Por favor, verifique o CEP digitado e preencha os dados manualmente.",
+          variant: "destructive",
+        });
+        setFormData(prev => ({
+          ...prev,
+          street: '',
+          neighborhood: '',
+          city: '',
+          state: '',
+        }));
       }
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível consultar os Correios agora. Preencha manualmente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -188,11 +212,16 @@ const Customers = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+  const openDeleteDialog = (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
 
     try {
-      const { error } = await supabase.from('customers').delete().eq('id', id);
+      const { error } = await supabase.from('customers').delete().eq('id', customerToDelete.id);
 
       if (error) throw error;
 
@@ -201,6 +230,8 @@ const Customers = () => {
         description: "O cliente foi removido com sucesso.",
       });
 
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
       fetchCustomers();
     } catch (error: any) {
       toast({
@@ -269,6 +300,11 @@ const Customers = () => {
     if (sortBy === 'name') {
       return a.full_name.localeCompare(b.full_name);
     }
+    if (sortBy === 'recent') {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }
     return 0;
   });
 
@@ -278,20 +314,24 @@ const Customers = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedCustomers = sortedCustomers.slice(startIndex, endIndex);
 
-  // Reset para página 1 quando filtros mudam
+  // Reset para página 1 quando filtros ou ordenação mudam
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterType, filterStatus]);
+  }, [searchTerm, filterType, filterStatus, sortBy]);
 
   const activeCustomers = customers.filter(c => c.data_consent).length;
   const clientsCount = customers.filter(c => c.user_type === 'client').length;
   const sellersCount = customers.filter(c => c.user_type === 'seller').length;
   const managersCount = customers.filter(c => c.user_type === 'manager').length;
-  const formatPhone = (phone: any) => {
-    if (!phone) return "-";
-    const value = String(phone).replace(/\D/g, "");
-    if (value.length === 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-    if (value.length === 10) return value.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+
+  // Máscara robusta para CPF
+  const formatCPF = (cpf: any) => {
+    if (!cpf) return "-";
+    const value = String(cpf).replace(/\D/g, "");
+    
+    if (value.length >= 11) {
+      return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2}).*/, "$1.$2.$3-$4");
+    }
     return value;
   };
   return (
@@ -714,7 +754,7 @@ const Customers = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(customer.id)}
+                              onClick={() => openDeleteDialog(customer)}
                               className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                               title="Excluir"
                             >
@@ -809,6 +849,27 @@ const Customers = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Diálogo de confirmação de exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente <strong>"{customerToDelete?.full_name}"</strong>? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

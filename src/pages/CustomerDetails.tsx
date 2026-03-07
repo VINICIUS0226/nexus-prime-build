@@ -8,6 +8,7 @@ import { ArrowLeft, ShoppingCart, Package, Calendar, User, Mail, Phone, MapPin, 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { formatPhone } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Customer {
@@ -142,13 +143,6 @@ const CustomerDetails = () => {
     0
   );
 
-  const formatPhone = (phone: any) => {
-    if (!phone) return "-";
-    const value = String(phone).replace(/\D/g, "");
-    if (value.length === 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-    if (value.length === 10) return value.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-    return value;
-  };
   const formatCPF = (cpf: any) => {
     if (!cpf) return "";
     
