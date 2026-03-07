@@ -17,13 +17,15 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, DollarSign, Trash2, Eye, Search, Package, 
   CreditCard, Banknote, QrCode, Receipt, TrendingUp,
-  Minus, CheckCircle, Clock, User, Calendar, Printer
+  Minus, CheckCircle, Clock, User, Calendar, Printer,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SaleReceipt } from '@/components/SaleReceipt';
 import { usePrint } from '@/hooks/usePrint';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
+import { formatPhone } from '@/lib/utils';
 
 interface Customer {
   id: string;
@@ -121,16 +123,6 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   bank_slip: { label: 'Boleto', icon: Receipt }
 };
 
-const formatPhone = (phone: string): string => {
-  if (!phone) return '';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 11) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-  } else if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
-  }
-  return phone;
-};
 
 const sanitizeNumericInput = (value: string): number => {
   let cleaned = value.replace(/^0+(?=\d)/, '');
@@ -172,6 +164,10 @@ const Sales = () => {
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchData();
@@ -443,6 +439,27 @@ const Sales = () => {
         }
       }
 
+      // 1. Just-In-Time Validation: Checa o estoque real no banco de dados
+      for (const item of cart) {
+        const { data: currentVar } = await supabase
+          .from('product_variations')
+          .select('stock_quantity, reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (currentVar) {
+          // Se for venda direta, avalia o estoque livre. Se for reserva, a quantidade já está garantida no reserved_quantity
+          const availableNow = saleMode === 'reservation' 
+            ? currentVar.stock_quantity 
+            : currentVar.stock_quantity - currentVar.reserved_quantity;
+
+          if (availableNow < item.quantity) {
+            throw new Error(`Estoque insuficiente! O item ${item.variation.product?.name} foi vendido por outro usuário agora mesmo.`);
+          }
+        }
+      }
+
+      // 2. Insere a Venda
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -460,6 +477,7 @@ const Sales = () => {
 
       if (saleError) throw saleError;
 
+      // 3. Insere os pagamentos
       for (const payment of payments) {
         const { error: paymentError } = await supabase
           .from('payments')
@@ -473,22 +491,31 @@ const Sales = () => {
         if (paymentError) throw paymentError;
       }
 
+      // 4. Dá baixa no estoque lendo o valor mais recente do banco
       for (const item of cart) {
-        if (saleMode === 'reservation') {
-          await supabase
-            .from('product_variations')
-            .update({
-              stock_quantity: item.variation.stock_quantity - item.quantity,
-              reserved_quantity: Math.max(0, item.variation.reserved_quantity - item.quantity)
-            })
-            .eq('id', item.variation.id);
-        } else {
-          await supabase
-            .from('product_variations')
-            .update({
-              stock_quantity: item.variation.stock_quantity - item.quantity
-            })
-            .eq('id', item.variation.id);
+        const { data: freshVar } = await supabase
+          .from('product_variations')
+          .select('stock_quantity, reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (freshVar) {
+          if (saleMode === 'reservation') {
+            await supabase
+              .from('product_variations')
+              .update({
+                stock_quantity: freshVar.stock_quantity - item.quantity,
+                reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
+              })
+              .eq('id', item.variation.id);
+          } else {
+            await supabase
+              .from('product_variations')
+              .update({
+                stock_quantity: freshVar.stock_quantity - item.quantity
+              })
+              .eq('id', item.variation.id);
+          }
         }
       }
 
@@ -551,7 +578,9 @@ const Sales = () => {
       return saleDate.toDateString() === today.toDateString();
     }
     if (dateFilter === 'week') {
-      const weekAgo = new Date(today.setDate(today.getDate() - 7));
+      const todayCopy = new Date();
+      const weekAgo = new Date(todayCopy);
+      weekAgo.setDate(weekAgo.getDate() - 7);
       return saleDate >= weekAgo;
     }
     if (dateFilter === 'month') {
@@ -559,6 +588,16 @@ const Sales = () => {
     }
     return true;
   });
+
+  // Logica de Paginação Front-end
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSales = filteredSales.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   const getPaymentStatusBadge = (payments: Payment[]) => {
     const allPaid = payments?.every(p => p.status === 'approved');
@@ -586,7 +625,6 @@ const Sales = () => {
           </p>
         </div>
 
-        {/* RESPONSIVIDADE: grid-cols-1 no mobile para evitar esmagamento dos cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
@@ -630,7 +668,6 @@ const Sales = () => {
           </Card>
         </div>
 
-        {/* RESPONSIVIDADE: Empilha os botões/filtros no mobile */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
@@ -643,7 +680,6 @@ const Sales = () => {
               </Button>
             </DialogTrigger>
             
-            {/* RESPONSIVIDADE: Scroll interno no modal e p-4 para telas pequenas */}
             <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
@@ -722,7 +758,6 @@ const Sales = () => {
                                 </div>
                               )}
                               <div>
-                                {/* RESPONSIVIDADE: line-clamp para não quebrar layout com nomes longos */}
                                 <p className="font-medium text-sm line-clamp-1">{variation.product?.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {variation.size} {variation.color && `/ ${variation.color}`} | Disp: {available}
@@ -749,9 +784,7 @@ const Sales = () => {
                 </TabsContent>
               </Tabs>
 
-              {/* RESPONSIVIDADE: lg:grid-cols-2 isola as duas colunas apenas em telas grandes */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                {/* Left: Cart */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer">Cliente *</Label>
@@ -793,7 +826,6 @@ const Sales = () => {
                                 {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
                               </p>
                             </div>
-                            {/* RESPONSIVIDADE: Organização dos controles de quantidade no mobile */}
                             <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                               <div className="flex items-center gap-1">
                                 <Button
@@ -874,7 +906,6 @@ const Sales = () => {
                   </div>
                 </div>
 
-                {/* Right: Payment */}
                 <div className="space-y-4">
                   <div className="border rounded-lg p-4 bg-muted/30">
                     <div className="space-y-2 text-sm">
@@ -915,7 +946,6 @@ const Sales = () => {
                     ) : (
                       <div className="space-y-2">
                         {payments.map((payment, index) => (
-                          // RESPONSIVIDADE: flex-col no mobile para não esmagar selects e inputs
                           <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-muted/50 rounded">
                             <Select
                               value={payment.method}
@@ -971,7 +1001,6 @@ const Sales = () => {
                     )}
                   </div>
 
-                  {/* RESPONSIVIDADE: Botões ocupando w-full no mobile */}
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
@@ -1019,61 +1048,60 @@ const Sales = () => {
           </Select>
         </div>
 
-        {/* Sales Table */}
+        {/* Tabela com Paginação */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            {/* RESPONSIVIDADE: overflow-x-auto e whitespace-nowrap nos TH */}
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary">
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Código</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Cliente</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Origem</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Total</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Pagamento</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap">Data</TableHead>
-                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap">Ações</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Código</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Cliente</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Origem</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Total</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Pagamento</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Data</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap py-4">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         Carregando...
                       </TableCell>
                     </TableRow>
-                  ) : filteredSales.length === 0 ? (
+                  ) : paginatedSales.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         Nenhuma venda encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredSales.map(sale => (
+                    paginatedSales.map(sale => (
                       <TableRow key={sale.id}>
-                        <TableCell className="font-mono text-sm">
+                        <TableCell className="font-mono text-sm py-4">
                           #{sale.id.slice(0, 8)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-4">
                           <div className="min-w-[150px]">
                             <p className="font-medium line-clamp-1">{sale.customer?.full_name}</p>
                             <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-4">
                           <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
                             {sale.reservation_id ? 'Reserva' : 'Direta'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-semibold whitespace-nowrap">
+                        <TableCell className="font-semibold whitespace-nowrap py-4">
                           R$ {sale.total.toFixed(2)}
                         </TableCell>
-                        <TableCell>{getPaymentStatusBadge(sale.payments || [])}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        <TableCell className="py-4">{getPaymentStatusBadge(sale.payments || [])}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap py-4">
                           {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right py-4">
                           <Button
                             size="icon"
                             variant="ghost"
@@ -1088,6 +1116,84 @@ const Sales = () => {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Rodapé com Paginação */}
+            {!loading && filteredSales.length > 0 && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t bg-muted/30">
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground w-full md:w-auto text-center sm:text-left">
+                  <span>
+                    Exibindo {startIndex + 1} - {Math.min(endIndex, filteredSales.length)} de {filteredSales.length} vendas
+                  </span>
+                  <div className="flex items-center gap-2 justify-center">
+                    <span>Por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="h-8 w-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <span className="hidden sm:inline">Próximo</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1106,7 +1212,6 @@ const Sales = () => {
                   </Button>
                 </div>
                 
-                {/* RESPONSIVIDADE: grid-cols-1 no mobile */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3 rounded-lg border">
                     <Label className="text-muted-foreground text-xs">Cliente</Label>

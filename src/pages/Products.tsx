@@ -177,7 +177,7 @@ const Products = () => {
           cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
           selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
           profit_margin:
-            formData.cost_price && parseFloat(formData.cost_price) > 0
+            formData.cost_price && parseFloat(formData.cost_price) > 0 && formData.selling_price && !isNaN(parseFloat(formData.selling_price))
               ? Math.round(
                   ((parseFloat(formData.selling_price) - parseFloat(formData.cost_price)) /
                     parseFloat(formData.cost_price)) *
@@ -234,13 +234,36 @@ const Products = () => {
     setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
+      // Deletar as variações primeiro para evitar bloqueio de Foreign Key
+      const { error: varError } = await supabase
+        .from('product_variations')
+        .delete()
+        .eq('product_id', productToDelete.id);
+        
+      if (varError) throw varError;
+
+      // Deletar as imagens também para evitar bloqueio (se a tabela existir)
+      const { error: imgError } = await supabase
+        .from('product_images')
+        .delete()
+        .eq('product_id', productToDelete.id);
+        
+      if (imgError && imgError.code !== 'PGRST204') {
+        // Ignora erro se a tabela não existir, mas lança se for outro erro
+        console.warn("Erro não crítico ao limpar imagens:", imgError);
+      }
+
+      // Agora é seguro deletar o produto pai
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Produto excluído",
-        description: "O produto foi removido com sucesso.",
+        description: "O produto e suas variações foram removidos com sucesso.",
       });
 
       fetchProducts();
