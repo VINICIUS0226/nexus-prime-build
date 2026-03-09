@@ -97,6 +97,26 @@ const Products = () => {
     cost_price: '',
   });
 
+  // Barcode scanner: find product by barcode or SKU and open add-to-cart
+  const handleBarcodeScan = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+    // Search by product barcode first
+    const matchedProduct = products.find(p => 
+      p.barcode?.toLowerCase() === code.toLowerCase() ||
+      p.product_variations?.some(v => v.sku.toLowerCase() === code.toLowerCase())
+    );
+
+    if (matchedProduct) {
+      setSelectedProduct(matchedProduct);
+      setAddToCartDialogOpen(true);
+      sonnerToast.success(`Produto encontrado: ${matchedProduct.name}`);
+    } else {
+      sonnerToast.error(`Nenhum produto encontrado para o código: ${code}`);
+    }
+  }, [products]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan, enabled: !dialogOpen && !addToCartDialogOpen });
+
   useEffect(() => {
     fetchProducts();
   }, []);
