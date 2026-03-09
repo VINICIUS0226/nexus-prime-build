@@ -97,23 +97,87 @@ const Products = () => {
     cost_price: '',
   });
 
-  // Barcode scanner: find product by barcode or SKU and open add-to-cart
+  // Barcode scanner: find product by barcode or SKU and add to cart directly
   const handleBarcodeScan = useCallback((scannedCode: string) => {
     const code = scannedCode.trim();
-    // Search by product barcode first
-    const matchedProduct = products.find(p => 
-      p.barcode?.toLowerCase() === code.toLowerCase() ||
-      p.product_variations?.some(v => v.sku.toLowerCase() === code.toLowerCase())
+
+    // 1. Try exact match on variation SKU
+    const matchedVariations = products.flatMap(p => 
+      (p.product_variations || [])
+        .filter(v => v.sku.toLowerCase() === code.toLowerCase())
+        .map(v => ({ product: p, variation: v }))
     );
 
-    if (matchedProduct) {
-      setSelectedProduct(matchedProduct);
-      setAddToCartDialogOpen(true);
-      sonnerToast.success(`Produto encontrado: ${matchedProduct.name}`);
-    } else {
-      sonnerToast.error(`Nenhum produto encontrado para o código: ${code}`);
+    // 2. Try match on product barcode
+    const matchedByBarcode = matchedVariations.length === 0
+      ? products.filter(p => p.barcode?.toLowerCase() === code.toLowerCase())
+      : [];
+
+    // Case A: Exact single variation match by SKU → add directly to cart
+    if (matchedVariations.length === 1) {
+      const { product: p, variation: v } = matchedVariations[0];
+      const available = v.stock_quantity - v.reserved_quantity;
+      if (available <= 0) {
+        sonnerToast.error(`${p.name} - Sem estoque disponível`);
+        return;
+      }
+      const img = p.product_images?.find(i => i.is_primary)?.image_url || p.product_images?.[0]?.image_url || p.image_url;
+      addItems([{
+        variationId: v.id,
+        productId: p.id,
+        productName: p.name,
+        variationInfo: [v.size, v.color].filter(Boolean).join(' / '),
+        quantity: 1,
+        unitPrice: v.selling_price ?? p.selling_price ?? 0,
+        availableStock: available,
+        imageUrl: img || null,
+      }]);
+      sonnerToast.success(`Adicionado ao carrinho: ${p.name} ${[v.size, v.color].filter(Boolean).join(' / ')}`);
+      return;
     }
-  }, [products]);
+
+    // Case B: Multiple variations with same SKU → open dialog to choose
+    if (matchedVariations.length > 1) {
+      const p = matchedVariations[0].product;
+      setSelectedProduct(p);
+      setAddToCartDialogOpen(true);
+      sonnerToast.info(`${matchedVariations.length} variações encontradas para SKU ${code}. Selecione a desejada.`);
+      return;
+    }
+
+    // Case C: Match by product barcode
+    if (matchedByBarcode.length === 1) {
+      const p = matchedByBarcode[0];
+      const variations = p.product_variations || [];
+      if (variations.length === 1) {
+        const v = variations[0];
+        const available = v.stock_quantity - v.reserved_quantity;
+        if (available <= 0) {
+          sonnerToast.error(`${p.name} - Sem estoque disponível`);
+          return;
+        }
+        const img = p.product_images?.find(i => i.is_primary)?.image_url || p.product_images?.[0]?.image_url || p.image_url;
+        addItems([{
+          variationId: v.id,
+          productId: p.id,
+          productName: p.name,
+          variationInfo: [v.size, v.color].filter(Boolean).join(' / '),
+          quantity: 1,
+          unitPrice: v.selling_price ?? p.selling_price ?? 0,
+          availableStock: available,
+          imageUrl: img || null,
+        }]);
+        sonnerToast.success(`Adicionado ao carrinho: ${p.name}`);
+      } else {
+        setSelectedProduct(p);
+        setAddToCartDialogOpen(true);
+        sonnerToast.info(`Produto encontrado: ${p.name}. Selecione a variação.`);
+      }
+      return;
+    }
+
+    sonnerToast.error(`Nenhum produto encontrado para o código: ${code}`);
+  }, [products, addItems]);
 
   useBarcodeScanner({ onScan: handleBarcodeScan, enabled: !dialogOpen && !addToCartDialogOpen });
 
