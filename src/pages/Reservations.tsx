@@ -41,6 +41,7 @@ interface Product {
   description: string | null;
   selling_price: number | null;
   image_url: string | null;
+  barcode: string | null;
 }
 
 interface ProductVariation {
