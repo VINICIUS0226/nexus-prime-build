@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Bell, X, Plus, Minus, Trash2, ShoppingBag, PackageCheck } from 'lucide-react';
+import { ShoppingCart, Bell, X, Plus, Minus, Trash2, ShoppingBag, PackageCheck, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -8,7 +8,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/CartContext';
 
-export const DashboardHeader = () => {
+export interface DashboardHeaderProps {
+  onMenuClick?: () => void;
+  showMenuButton?: boolean;
+}
+
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick, showMenuButton = false }) => {
   const navigate = useNavigate();
   const { items, totalItems, totalValue, updateQuantity, removeItem, clearCart } = useCart();
   const [cartOpen, setCartOpen] = useState(false);
@@ -36,7 +41,21 @@ export const DashboardHeader = () => {
   };
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center justify-end px-6 gap-2">
+    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 md:px-6 gap-2">
+      {showMenuButton && onMenuClick ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="md:hidden"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      ) : (
+        <div className="w-9 md:hidden" aria-hidden />
+      )}
+      <div className="flex items-center gap-2 ml-auto">
       {/* Notificações */}
       <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
@@ -202,6 +221,7 @@ export const DashboardHeader = () => {
           )}
         </PopoverContent>
       </Popover>
+      </div>
     </header>
   );
 };
