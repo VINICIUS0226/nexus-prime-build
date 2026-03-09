@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,8 +18,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
-  Minus, ChevronLeft, ChevronRight, Printer
+  Minus, ChevronLeft, ChevronRight, Printer, ScanBarcode
 } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatPhone } from '@/lib/utils';
@@ -39,6 +41,7 @@ interface Product {
   description: string | null;
   selling_price: number | null;
   image_url: string | null;
+  barcode: string | null;
 }
 
 interface ProductVariation {
@@ -122,6 +125,8 @@ const Reservations = () => {
   // Cancel confirmation dialog
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+
+
 
   useEffect(() => {
     fetchData();
@@ -234,6 +239,48 @@ const Reservations = () => {
       }]);
     }
   };
+
+  // Barcode scanner integration
+  const handleBarcodeScan = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+
+    if (dialogOpen) {
+      const matchedVariation = variations.find(v => 
+        v.sku.toLowerCase() === code.toLowerCase()
+      );
+      const matchedByBarcode = !matchedVariation 
+        ? variations.find(v => {
+            const product = products.find(p => p.id === v.product_id);
+            return product?.barcode?.toLowerCase() === code.toLowerCase();
+          })
+        : null;
+
+      const found = matchedVariation || matchedByBarcode;
+      if (found) {
+        addToCart(found);
+        sonnerToast.success(`Adicionado: ${found.product?.name || found.sku}`);
+      } else {
+        sonnerToast.error(`Produto não encontrado: ${code}`);
+      }
+      return;
+    }
+
+    const matchedReservation = reservations.find(r => 
+      r.bag_code?.toLowerCase() === code.toLowerCase() ||
+      r.id.slice(0, 12).toUpperCase() === code.toUpperCase() ||
+      r.id.slice(0, 8).toUpperCase() === code.toUpperCase()
+    );
+
+    if (matchedReservation) {
+      setSelectedReservation(matchedReservation);
+      setDetailsOpen(true);
+      sonnerToast.success(`Reserva encontrada: ${matchedReservation.bag_code || matchedReservation.id.slice(0, 8)}`);
+    } else {
+      sonnerToast.error(`Nenhuma reserva encontrada para: ${code}`);
+    }
+  }, [dialogOpen, variations, products, reservations, addToCart]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan });
 
   const removeFromCart = (variationId: string) => {
     setCart(cart.filter(item => item.variation.id !== variationId));
