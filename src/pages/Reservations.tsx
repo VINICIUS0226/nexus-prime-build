@@ -18,8 +18,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
-  Minus, ChevronLeft, ChevronRight, Printer
+  Minus, ChevronLeft, ChevronRight, Printer, ScanBarcode
 } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatPhone } from '@/lib/utils';
