@@ -245,26 +245,43 @@ const Reservations = () => {
     const code = scannedCode.trim();
 
     if (dialogOpen) {
-      const matchedVariation = variations.find(v => 
+      // Match by SKU
+      const matchedBySku = variations.filter(v => 
         v.sku.toLowerCase() === code.toLowerCase()
       );
-      const matchedByBarcode = !matchedVariation 
-        ? variations.find(v => {
+
+      // Match by product barcode
+      const matchedByBarcode = matchedBySku.length === 0
+        ? variations.filter(v => {
             const product = products.find(p => p.id === v.product_id);
             return product?.barcode?.toLowerCase() === code.toLowerCase();
           })
-        : null;
+        : [];
 
-      const found = matchedVariation || matchedByBarcode;
-      if (found) {
-        addToCart(found);
-        sonnerToast.success(`Adicionado: ${found.product?.name || found.sku}`);
+      const allMatches = matchedBySku.length > 0 ? matchedBySku : matchedByBarcode;
+
+      if (allMatches.length === 1) {
+        // Single match → add directly
+        addToCart(allMatches[0]);
+        sonnerToast.success(`Adicionado: ${allMatches[0].product?.name || allMatches[0].sku}`);
+      } else if (allMatches.length > 1) {
+        // Multiple variations with same SKU/barcode → add first with stock, show in search
+        const withStock = allMatches.find(v => (v.stock_quantity - v.reserved_quantity) > 0);
+        if (withStock) {
+          addToCart(withStock);
+          const info = [withStock.size, withStock.color].filter(Boolean).join(' / ');
+          sonnerToast.success(`Adicionado: ${withStock.product?.name} ${info}`);
+        } else {
+          sonnerToast.error(`Todas as variações de ${code} estão sem estoque`);
+        }
+        setProductSearch(code);
       } else {
         sonnerToast.error(`Produto não encontrado: ${code}`);
       }
       return;
     }
 
+    // Outside dialog: search reservation by bag_code or ID
     const matchedReservation = reservations.find(r => 
       r.bag_code?.toLowerCase() === code.toLowerCase() ||
       r.id.slice(0, 12).toUpperCase() === code.toUpperCase() ||
@@ -276,9 +293,25 @@ const Reservations = () => {
       setDetailsOpen(true);
       sonnerToast.success(`Reserva encontrada: ${matchedReservation.bag_code || matchedReservation.id.slice(0, 8)}`);
     } else {
-      sonnerToast.error(`Nenhuma reserva encontrada para: ${code}`);
+      // No reservation found, try to find product and open new reservation dialog
+      const productMatch = variations.find(v => 
+        v.sku.toLowerCase() === code.toLowerCase()
+      ) || variations.find(v => {
+        const product = products.find(p => p.id === v.product_id);
+        return product?.barcode?.toLowerCase() === code.toLowerCase();
+      });
+
+      if (productMatch) {
+        setDialogOpen(true);
+        setTimeout(() => {
+          addToCart(productMatch);
+          sonnerToast.success(`Nova reserva: ${productMatch.product?.name || productMatch.sku} adicionado`);
+        }, 100);
+      } else {
+        sonnerToast.error(`Nenhum resultado para: ${code}`);
+      }
     }
-  }, [dialogOpen, variations, products, reservations, addToCart]);
+  }, [dialogOpen, variations, products, reservations, addToCart, setProductSearch]);
 
   useBarcodeScanner({ onScan: handleBarcodeScan });
 
