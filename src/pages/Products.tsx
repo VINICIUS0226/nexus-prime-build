@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Filter, ShoppingCart } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode } from 'lucide-react';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ProductCardGallery } from '@/components/ProductCardGallery';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
 import { useCart, CartItem } from '@/contexts/CartContext';
+import { toast as sonnerToast } from 'sonner';
 
 interface ProductVariation {
   id: string;
@@ -94,6 +96,26 @@ const Products = () => {
     selling_price: '',
     cost_price: '',
   });
+
+  // Barcode scanner: find product by barcode or SKU and open add-to-cart
+  const handleBarcodeScan = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+    // Search by product barcode first
+    const matchedProduct = products.find(p => 
+      p.barcode?.toLowerCase() === code.toLowerCase() ||
+      p.product_variations?.some(v => v.sku.toLowerCase() === code.toLowerCase())
+    );
+
+    if (matchedProduct) {
+      setSelectedProduct(matchedProduct);
+      setAddToCartDialogOpen(true);
+      sonnerToast.success(`Produto encontrado: ${matchedProduct.name}`);
+    } else {
+      sonnerToast.error(`Nenhum produto encontrado para o código: ${code}`);
+    }
+  }, [products]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan, enabled: !dialogOpen && !addToCartDialogOpen });
 
   useEffect(() => {
     fetchProducts();
