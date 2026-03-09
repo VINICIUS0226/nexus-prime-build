@@ -26,12 +26,14 @@ import { SaleReceipt } from '@/components/SaleReceipt';
 import { usePrint } from '@/hooks/usePrint';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { formatPhone } from '@/lib/utils';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 
 interface Customer {
   id: string;
   full_name: string;
   phone: string;
   email: string | null;
+  trust_level?: 'low' | 'medium' | 'high' | null;
 }
 
 interface Product {
@@ -230,7 +232,7 @@ const Sales = () => {
             payments(id, method, amount, status, paid_at)
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('customers').select('id, full_name, phone, email').order('full_name'),
+        supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase
           .from('product_variations')
           .select(`
@@ -866,7 +868,10 @@ const Sales = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {customer.phone}
+                            <div className="flex items-center gap-2">
+                              <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                              {customer.full_name} - {customer.phone}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>

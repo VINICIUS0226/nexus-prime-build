@@ -13,9 +13,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 import { formatPhone } from '@/lib/utils';
 
 type CustomerType = 'client' | 'seller' | 'manager';
+
+type TrustLevel = 'low' | 'medium' | 'high';
 
 interface Customer {
   id: string;
@@ -32,6 +36,8 @@ interface Customer {
   state: string | null;
   data_consent: boolean;
   user_type: CustomerType;
+  notes?: string | null;
+  trust_level?: TrustLevel | null;
   created_at?: string;
 }
 
@@ -77,6 +83,8 @@ const Customers = () => {
     state: '',
     data_consent: false,
     user_type: 'client' as CustomerType,
+    notes: '',
+    trust_level: '' as TrustLevel | '',
   });
 
   const fetchAddressByCep = async (cep: string) => {
@@ -165,6 +173,8 @@ const Customers = () => {
             state: formData.state || null,
             data_consent: formData.data_consent,
             user_type: formData.user_type,
+            notes: formData.notes || null,
+            trust_level: formData.trust_level || null,
           })
           .eq('id', editingCustomer.id);
 
@@ -189,6 +199,8 @@ const Customers = () => {
           state: formData.state || null,
           data_consent: formData.data_consent,
           user_type: formData.user_type,
+          notes: formData.notes || null,
+          trust_level: formData.trust_level || null,
         }]);
 
         if (error) throw error;
@@ -258,6 +270,8 @@ const Customers = () => {
       state: customer.state || '',
       data_consent: customer.data_consent,
       user_type: customer.user_type || 'client',
+      notes: customer.notes || '',
+      trust_level: (customer.trust_level as TrustLevel) || '',
     });
     setDialogOpen(true);
   };
@@ -277,6 +291,8 @@ const Customers = () => {
       state: '',
       data_consent: false,
       user_type: 'client',
+      notes: '',
+      trust_level: '',
     });
     setEditingCustomer(null);
   };
@@ -576,6 +592,54 @@ const Customers = () => {
                   </div>
                 </div>
 
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Observações</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value.slice(0, 1000) })}
+                      placeholder="Observações sobre o cliente..."
+                      rows={3}
+                      maxLength={1000}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground text-right">{formData.notes.length}/1000</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Indicador de confiabilidade</Label>
+                    <Select
+                      value={formData.trust_level || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, trust_level: v === 'none' ? '' : (v as TrustLevel) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem indicação" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem indicação</SelectItem>
+                        <SelectItem value="low">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-destructive" />
+                            Pouco confiável
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="medium">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                            Mais ou menos
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="high">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-600" />
+                            Muito confiável
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <p className="text-xs text-muted-foreground">
                   Ao ativar, o usuário consente com o uso de seus dados pessoais (LGPD)
                 </p>
@@ -692,7 +756,10 @@ const Customers = () => {
                         className={`hover:bg-muted/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
                       >
                         <TableCell className="font-medium text-foreground py-4 px-6 whitespace-nowrap">
-                          {customer.full_name}
+                          <div className="flex items-center gap-2">
+                            <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                            {customer.full_name}
+                          </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground py-4 px-4 text-sm whitespace-nowrap">
                           {customer.email || '-'}

@@ -27,11 +27,13 @@ export type Database = {
           full_name: string
           id: string
           neighborhood: string | null
+          notes: string | null
           number: string | null
           phone: string
           state: string | null
           store_id: string | null
           street: string | null
+          trust_level: 'low' | 'medium' | 'high' | null
           updated_at: string
           user_type: Database["public"]["Enums"]["customer_type"]
           zip_code: string | null
@@ -48,11 +50,13 @@ export type Database = {
           full_name: string
           id?: string
           neighborhood?: string | null
+          notes?: string | null
           number?: string | null
           phone: string
           state?: string | null
           store_id?: string | null
           street?: string | null
+          trust_level?: 'low' | 'medium' | 'high' | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
@@ -69,11 +73,13 @@ export type Database = {
           full_name?: string
           id?: string
           neighborhood?: string | null
+          notes?: string | null
           number?: string | null
           phone?: string
           state?: string | null
           store_id?: string | null
           street?: string | null
+          trust_level?: 'low' | 'medium' | 'high' | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null

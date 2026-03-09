@@ -8,6 +8,7 @@ import { ArrowLeft, ShoppingCart, Package, Calendar, User, Mail, Phone, MapPin, 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 import { formatPhone } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -25,6 +26,8 @@ interface Customer {
   state: string | null;
   cep: string | null;
   data_consent: boolean;
+  notes?: string | null;
+  trust_level?: 'low' | 'medium' | 'high' | null;
   created_at: string;
 }
 
@@ -199,9 +202,12 @@ const CustomerDetails = () => {
               <p className="text-muted-foreground">Detalhes do Cliente</p>
             </div>
           </div>
-          <Badge variant={customer.data_consent ? "default" : "destructive"} className="text-base px-4 py-2 self-start sm:self-auto">
-            {customer.data_consent ? 'Ativo' : 'Inativo'}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <TrustLevelIndicator level={customer.trust_level} showLabel className="self-center" />
+            <Badge variant={customer.data_consent ? "default" : "destructive"} className="text-base px-4 py-2 self-start sm:self-auto">
+              {customer.data_consent ? 'Ativo' : 'Inativo'}
+            </Badge>
+          </div>
         </div>
 
         {/* Estatísticas - RESPONSIVIDADE: grid-cols-1 no mobile */}
@@ -320,6 +326,26 @@ const CustomerDetails = () => {
                   <div className="font-medium">{formatDate(customer.created_at)}</div>
                 </div>
               </div>
+
+              {(customer.notes || customer.trust_level) && (
+                <div className="flex items-start gap-3 md:col-span-2 lg:col-span-3 pt-2 border-t mt-2">
+                  <FileText className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <div className="w-full space-y-2">
+                    {customer.trust_level && (
+                      <div>
+                        <div className="text-sm text-muted-foreground">Indicador de confiabilidade</div>
+                        <TrustLevelIndicator level={customer.trust_level} showLabel />
+                      </div>
+                    )}
+                    {customer.notes && (
+                      <div>
+                        <div className="text-sm text-muted-foreground">Observações</div>
+                        <div className="font-medium whitespace-pre-wrap break-words">{customer.notes}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

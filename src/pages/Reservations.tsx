@@ -24,6 +24,7 @@ import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatPhone } from '@/lib/utils';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 import { usePrint } from '@/hooks/usePrint';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { ReservationReceipt } from '@/components/ReservationReceipt';
@@ -33,6 +34,7 @@ interface Customer {
   full_name: string;
   phone: string;
   email: string | null;
+  trust_level?: 'low' | 'medium' | 'high' | null;
 }
 
 interface Product {
@@ -175,7 +177,7 @@ const Reservations = () => {
             )
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('customers').select('id, full_name, phone, email').order('full_name'),
+        supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase.from('products').select('*').order('name'),
         supabase
           .from('product_variations')
@@ -697,7 +699,10 @@ const Reservations = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {customer.phone}
+                            <div className="flex items-center gap-2">
+                              <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                              {customer.full_name} - {customer.phone}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
