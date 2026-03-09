@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ProductCardGallery } from '@/components/ProductCardGallery';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
 import { useCart, CartItem } from '@/contexts/CartContext';
+import { toast as sonnerToast } from 'sonner';
 
 interface ProductVariation {
   id: string;
