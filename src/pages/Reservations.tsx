@@ -282,7 +282,7 @@ const Reservations = () => {
 
   useBarcodeScanner({ onScan: handleBarcodeScan });
 
-
+  const removeFromCart = (variationId: string) => {
     setCart(cart.filter(item => item.variation.id !== variationId));
   };
 
