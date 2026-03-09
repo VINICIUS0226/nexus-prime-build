@@ -126,52 +126,7 @@ const Reservations = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
 
-  // Barcode scanner integration
-  const handleBarcodeScan = useCallback((scannedCode: string) => {
-    const code = scannedCode.trim();
 
-    // If the new reservation dialog is open, try to add product by barcode/SKU
-    if (dialogOpen) {
-      const matchedVariation = variations.find(v => 
-        v.sku.toLowerCase() === code.toLowerCase() ||
-        v.product?.name?.toLowerCase() === code.toLowerCase()
-      );
-
-      // Also check product barcode
-      const matchedByBarcode = !matchedVariation 
-        ? variations.find(v => {
-            const product = products.find(p => p.id === v.product_id);
-            return product?.barcode?.toLowerCase() === code.toLowerCase();
-          })
-        : null;
-
-      const found = matchedVariation || matchedByBarcode;
-      if (found) {
-        addToCart(found);
-        sonnerToast.success(`Adicionado: ${found.product?.name || found.sku}`);
-      } else {
-        sonnerToast.error(`Produto não encontrado: ${code}`);
-      }
-      return;
-    }
-
-    // If not in dialog, search for reservation by bag_code or ID prefix
-    const matchedReservation = reservations.find(r => 
-      r.bag_code?.toLowerCase() === code.toLowerCase() ||
-      r.id.slice(0, 12).toUpperCase() === code.toUpperCase() ||
-      r.id.slice(0, 8).toUpperCase() === code.toUpperCase()
-    );
-
-    if (matchedReservation) {
-      setSelectedReservation(matchedReservation);
-      setDetailsOpen(true);
-      sonnerToast.success(`Reserva encontrada: ${matchedReservation.bag_code || matchedReservation.id.slice(0, 8)}`);
-    } else {
-      sonnerToast.error(`Nenhuma reserva encontrada para: ${code}`);
-    }
-  }, [dialogOpen, variations, products, reservations, addToCart]);
-
-  useBarcodeScanner({ onScan: handleBarcodeScan });
 
   useEffect(() => {
     fetchData();
