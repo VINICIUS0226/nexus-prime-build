@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,10 +18,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, ShoppingCart, Trash2, Eye, Search, Package, 
   User, Calendar, CheckCircle, XCircle, Clock, DollarSign,
-  Minus, Printer
+  Minus, ChevronLeft, ChevronRight, Printer, ScanBarcode
 } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatPhone } from '@/lib/utils';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 import { usePrint } from '@/hooks/usePrint';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { ReservationReceipt } from '@/components/ReservationReceipt';
@@ -29,6 +34,7 @@ interface Customer {
   full_name: string;
   phone: string;
   email: string | null;
+  trust_level?: 'low' | 'medium' | 'high' | null;
 }
 
 interface Product {
@@ -37,6 +43,7 @@ interface Product {
   description: string | null;
   selling_price: number | null;
   image_url: string | null;
+  barcode: string | null;
 }
 
 interface ProductVariation {
@@ -79,7 +86,6 @@ interface CartItem {
   unit_price: number;
 }
 
-// Format currency consistently
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -115,25 +121,19 @@ const Reservations = () => {
   const [productSearch, setProductSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Cancel confirmation dialog
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+
+
+
   useEffect(() => {
     fetchData();
   }, []);
-    // Função para formatar o telefone
-  const formatPhone = (phone: any) => {
-    if (!phone) return "Sem telefone";
-    
-    // 1. Converte para string e remove tudo que não for número
-    const value = String(phone).replace(/\D/g, "");
-
-    // 2. Aplica a máscara (XX) XXXXX-XXXX se tiver 11 dígitos
-    if (value.length === 11) {
-      return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-    }
-    
-    // Retorna o original se não bater o tamanho (ex: fixo ou incompleto)
-    return value;
-  };
-  // Load prefilled cart from products page
   useEffect(() => {
     if (prefilledCart && variations.length > 0 && !dialogOpen) {
       const cartItems: CartItem[] = [];
@@ -158,7 +158,7 @@ const Reservations = () => {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [prefilledCart, variations]);
+  }, [prefilledCart, variations, dialogOpen]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -178,7 +178,7 @@ const Reservations = () => {
             )
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('customers').select('id, full_name, phone, email').order('full_name'),
+        supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase.from('products').select('*').order('name'),
         supabase
           .from('product_variations')
@@ -243,6 +243,81 @@ const Reservations = () => {
     }
   };
 
+  // Barcode scanner integration
+  const handleBarcodeScan = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+
+    if (dialogOpen) {
+      // Match by SKU
+      const matchedBySku = variations.filter(v => 
+        v.sku.toLowerCase() === code.toLowerCase()
+      );
+
+      // Match by product barcode
+      const matchedByBarcode = matchedBySku.length === 0
+        ? variations.filter(v => {
+            const product = products.find(p => p.id === v.product_id);
+            return product?.barcode?.toLowerCase() === code.toLowerCase();
+          })
+        : [];
+
+      const allMatches = matchedBySku.length > 0 ? matchedBySku : matchedByBarcode;
+
+      if (allMatches.length === 1) {
+        // Single match → add directly
+        addToCart(allMatches[0]);
+        sonnerToast.success(`Adicionado: ${allMatches[0].product?.name || allMatches[0].sku}`);
+      } else if (allMatches.length > 1) {
+        // Multiple variations with same SKU/barcode → add first with stock, show in search
+        const withStock = allMatches.find(v => (v.stock_quantity - v.reserved_quantity) > 0);
+        if (withStock) {
+          addToCart(withStock);
+          const info = [withStock.size, withStock.color].filter(Boolean).join(' / ');
+          sonnerToast.success(`Adicionado: ${withStock.product?.name} ${info}`);
+        } else {
+          sonnerToast.error(`Todas as variações de ${code} estão sem estoque`);
+        }
+        setProductSearch(code);
+      } else {
+        sonnerToast.error(`Produto não encontrado: ${code}`);
+      }
+      return;
+    }
+
+    // Outside dialog: search reservation by bag_code or ID
+    const matchedReservation = reservations.find(r => 
+      r.bag_code?.toLowerCase() === code.toLowerCase() ||
+      r.id.slice(0, 12).toUpperCase() === code.toUpperCase() ||
+      r.id.slice(0, 8).toUpperCase() === code.toUpperCase()
+    );
+
+    if (matchedReservation) {
+      setSelectedReservation(matchedReservation);
+      setDetailsOpen(true);
+      sonnerToast.success(`Reserva encontrada: ${matchedReservation.bag_code || matchedReservation.id.slice(0, 8)}`);
+    } else {
+      // No reservation found, try to find product and open new reservation dialog
+      const productMatch = variations.find(v => 
+        v.sku.toLowerCase() === code.toLowerCase()
+      ) || variations.find(v => {
+        const product = products.find(p => p.id === v.product_id);
+        return product?.barcode?.toLowerCase() === code.toLowerCase();
+      });
+
+      if (productMatch) {
+        setDialogOpen(true);
+        setTimeout(() => {
+          addToCart(productMatch);
+          sonnerToast.success(`Nova reserva: ${productMatch.product?.name || productMatch.sku} adicionado`);
+        }, 100);
+      } else {
+        sonnerToast.error(`Nenhum resultado para: ${code}`);
+      }
+    }
+  }, [dialogOpen, variations, products, reservations, addToCart, setProductSearch]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan });
+
   const removeFromCart = (variationId: string) => {
     setCart(cart.filter(item => item.variation.id !== variationId));
   };
@@ -265,25 +340,32 @@ const Reservations = () => {
 
   const handleCreateReservation = async () => {
     if (!selectedCustomer) {
-      toast({
-        title: "Selecione um cliente",
-        description: "É necessário selecionar um cliente para a reserva.",
-        variant: "destructive",
-      });
+      toast({ title: "Selecione um cliente", variant: "destructive" });
       return;
     }
-
     if (cart.length === 0) {
-      toast({
-        title: "Carrinho vazio",
-        description: "Adicione produtos à reserva.",
-        variant: "destructive",
-      });
+      toast({ title: "Carrinho vazio", variant: "destructive" });
       return;
     }
 
     try {
-      // Create reservation
+      // 1. Just-In-Time Validation: Checagem rigorosa de estoque antes de inserir
+      for (const item of cart) {
+        const { data: currentVar } = await supabase
+          .from('product_variations')
+          .select('stock_quantity, reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (currentVar) {
+          const availableNow = currentVar.stock_quantity - currentVar.reserved_quantity;
+          if (availableNow < item.quantity) {
+            throw new Error(`Estoque insuficiente! O item ${item.variation.product?.name} foi reservado por outro usuário agora mesmo.`);
+          }
+        }
+      }
+
+      // 2. Insere a Reserva
       const { data: reservation, error: reservationError } = await supabase
         .from('reservations')
         .insert({
@@ -298,7 +380,7 @@ const Reservations = () => {
 
       if (reservationError) throw reservationError;
 
-      // Create reservation items in batches to avoid issues with many items
+      // 3. Insere os Itens
       const BATCH_SIZE = 20;
       const itemsToInsert = cart.map(item => ({
         reservation_id: reservation.id,
@@ -309,29 +391,31 @@ const Reservations = () => {
 
       for (let i = 0; i < itemsToInsert.length; i += BATCH_SIZE) {
         const batch = itemsToInsert.slice(i, i + BATCH_SIZE);
-        const { error: itemError } = await supabase
-          .from('reservation_items')
-          .insert(batch);
-
+        const { error: itemError } = await supabase.from('reservation_items').insert(batch);
         if (itemError) throw itemError;
       }
 
-      // Update reserved_quantity for all items in batches
-      for (let i = 0; i < cart.length; i += BATCH_SIZE) {
-        const batch = cart.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(item => 
-          supabase
+      // 4. Atualiza os estoques reservados lendo o valor atual do banco
+      for (const item of cart) {
+        const { data: freshVar } = await supabase
+          .from('product_variations')
+          .select('reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (freshVar) {
+          const { error: updateError } = await supabase
             .from('product_variations')
-            .update({ 
-              reserved_quantity: item.variation.reserved_quantity + item.quantity 
-            })
-            .eq('id', item.variation.id)
-        ));
+            .update({ reserved_quantity: freshVar.reserved_quantity + item.quantity })
+            .eq('id', item.variation.id);
+
+          if (updateError) throw updateError;
+        }
       }
 
       toast({
         title: "Reserva criada!",
-        description: `Reserva criada com sucesso. Código: ${bagCode || reservation.id.slice(0, 8)}`,
+        description: `Código: ${bagCode || reservation.id.slice(0, 8)}`,
       });
 
       resetForm();
@@ -346,19 +430,35 @@ const Reservations = () => {
     }
   };
 
-  const handleCancelReservation = async (reservation: Reservation) => {
-    if (!confirm('Tem certeza que deseja cancelar esta reserva? O estoque será liberado.')) return;
+  const openCancelDialog = (reservation: Reservation) => {
+    setReservationToCancel(reservation);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancelReservation = async () => {
+    if (!reservationToCancel) return;
+    const reservation = reservationToCancel;
 
     try {
-      // Return stock for each item
+      // Libera o estoque lendo o valor mais recente do banco
       for (const item of reservation.reservation_items || []) {
-        if (item.variation) {
-          await supabase
+        if (!item.variation_id) continue;
+
+        const { data: freshVar } = await supabase
+          .from('product_variations')
+          .select('reserved_quantity')
+          .eq('id', item.variation_id)
+          .single();
+
+        if (freshVar) {
+          const { error: updateError } = await supabase
             .from('product_variations')
             .update({ 
-              reserved_quantity: Math.max(0, item.variation.reserved_quantity - item.quantity)
+              reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
             })
             .eq('id', item.variation_id);
+
+          if (updateError) throw updateError;
         }
       }
 
@@ -375,6 +475,9 @@ const Reservations = () => {
         description: "O estoque foi liberado.",
       });
 
+      setCancelDialogOpen(false);
+      setReservationToCancel(null);
+      setDetailsOpen(false);
       fetchData();
     } catch (error: any) {
       toast({
@@ -414,6 +517,16 @@ const Reservations = () => {
     return r.status === statusFilter;
   });
 
+  // Logica de Paginação Front-end
+  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedReservations = filteredReservations.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       active: { label: 'Ativa', variant: 'default' },
@@ -449,8 +562,7 @@ const Reservations = () => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -491,8 +603,7 @@ const Reservations = () => {
           </Card>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
@@ -503,13 +614,12 @@ const Reservations = () => {
                 Nova Reserva
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Criar Nova Reserva</DialogTitle>
               </DialogHeader>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Product Selection */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Buscar Produtos</Label>
@@ -580,7 +690,6 @@ const Reservations = () => {
                   </div>
                 </div>
 
-                {/* Right: Cart and Customer */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer">Cliente *</Label>
@@ -591,7 +700,10 @@ const Reservations = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {customer.phone}
+                            <div className="flex items-center gap-2">
+                              <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                              {customer.full_name} - {customer.phone}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -694,7 +806,7 @@ const Reservations = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
                       className="flex-1"
@@ -731,99 +843,179 @@ const Reservations = () => {
           </Select>
         </div>
 
-        {/* Reservations Table */}
+        {/* Tabela com Paginação */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground font-semibold">Código</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Cliente</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Itens</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Carregando...
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary hover:bg-primary border-b-0">
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Código</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Cliente</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Itens</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Total</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Status</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Data</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap py-4">Ações</TableHead>
                   </TableRow>
-                ) : filteredReservations.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma reserva encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredReservations.map(reservation => (
-                    <TableRow key={reservation.id}>
-                      <TableCell className="font-mono text-sm">
-                        {reservation.bag_code || reservation.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{reservation.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{formatPhone(reservation.customer?.phone || '')}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {reservation.reservation_items?.reduce((sum, item) => sum + item.quantity, 0) || 0} itens
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {getReservationTotal(reservation).toFixed(2)}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(reservation.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(reservation.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setSelectedReservation(reservation);
-                              setDetailsOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {reservation.status === 'active' && (
-                            <>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-success"
-                                onClick={() => handleConvertToSale(reservation)}
-                                title="Converter em Venda"
-                              >
-                                <DollarSign className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive"
-                                onClick={() => handleCancelReservation(reservation)}
-                                title="Cancelar Reserva"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        Carregando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : paginatedReservations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        Nenhuma reserva encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedReservations.map(reservation => (
+                      <TableRow key={reservation.id}>
+                        <TableCell className="font-mono text-sm py-4">
+                          {reservation.bag_code || reservation.id.slice(0, 8)}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="min-w-[150px]">
+                            <p className="font-medium line-clamp-1">{reservation.customer?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPhone(reservation.customer?.phone || '')}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <Badge variant="outline" className="whitespace-nowrap">
+                            {reservation.reservation_items?.reduce((sum, item) => sum + item.quantity, 0) || 0} itens
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap py-4">
+                          R$ {getReservationTotal(reservation).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="py-4">{getStatusBadge(reservation.status)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap py-4">
+                          {format(new Date(reservation.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right py-4">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectedReservation(reservation);
+                                setDetailsOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {reservation.status === 'active' && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-success"
+                                  onClick={() => handleConvertToSale(reservation)}
+                                  title="Converter em Venda"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => openCancelDialog(reservation)}
+                                  title="Cancelar Reserva"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Rodapé com Paginação */}
+            {!loading && filteredReservations.length > 0 && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t bg-muted/30">
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground w-full md:w-auto text-center sm:text-left">
+                  <span>
+                    Exibindo {startIndex + 1} - {Math.min(endIndex, filteredReservations.length)} de {filteredReservations.length} reservas
+                  </span>
+                  <div className="flex items-center gap-2 justify-center">
+                    <span>Por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="h-8 w-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <span className="hidden sm:inline">Próximo</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -930,7 +1122,7 @@ const Reservations = () => {
                       variant="destructive" 
                       className="flex-1"
                       onClick={() => {
-                        handleCancelReservation(selectedReservation);
+                        openCancelDialog(selectedReservation);
                         setDetailsOpen(false);
                       }}
                     >
@@ -986,6 +1178,27 @@ const Reservations = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Diálogo de confirmação de cancelamento */}
+        <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja cancelar esta reserva? O estoque será liberado. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setReservationToCancel(null)}>Não, manter reserva</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmCancelReservation}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Sim, cancelar reserva
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
