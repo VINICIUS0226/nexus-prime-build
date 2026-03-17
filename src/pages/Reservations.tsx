@@ -105,6 +105,7 @@ const Reservations = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [receiptPreviewOpen, setReceiptPreviewOpen] = useState(false);
   
   // Form state
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
@@ -836,13 +837,13 @@ const Reservations = () => {
               <div className="space-y-4 overflow-y-auto flex-1 pr-2">
                 <div className="flex justify-end">
                   <Button
-                    onClick={() => handlePrint('Recibo de Reserva')}
+                    onClick={() => setReceiptPreviewOpen(true)}
                     variant="outline"
                     size="sm"
                     className="gap-2"
                   >
                     <Printer className="h-4 w-4" />
-                    Imprimir Recibo / Etiquetas
+                    Visualizar Recibo / Etiquetas
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -953,16 +954,38 @@ const Reservations = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Hidden receipt for printing */}
-        <div className="hidden">
-          {selectedReservation && (
-            <ReservationReceipt
-              ref={printRef}
-              reservation={selectedReservation}
-              storeConfig={storeConfig}
-            />
-          )}
-        </div>
+        {/* Pré-visualização do Recibo / Etiquetas */}
+        <Dialog open={receiptPreviewOpen} onOpenChange={setReceiptPreviewOpen}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Pré-visualização do Recibo / Etiquetas</DialogTitle>
+            </DialogHeader>
+            {selectedReservation && (
+              <div className="space-y-4">
+                <div ref={printRef}>
+                  <ReservationReceipt
+                    reservation={selectedReservation}
+                    storeConfig={storeConfig}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setReceiptPreviewOpen(false)}>
+                    Fechar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handlePrint('Recibo de Reserva');
+                    }}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

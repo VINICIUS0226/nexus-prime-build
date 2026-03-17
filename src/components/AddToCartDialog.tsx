@@ -58,6 +58,7 @@ export const AddToCartDialog = ({
 }: AddToCartDialogProps) => {
   const [selections, setSelections] = useState<SelectedVariation[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
   const getProductImage = (): string | null => {
     if (product?.product_images && product.product_images.length > 0) {
@@ -119,20 +120,26 @@ export const AddToCartDialog = ({
     onAddToCart(items);
     setSelections([]);
     setSelectedColor(null);
+    setSelectedSize(null);
     onOpenChange(false);
   };
 
   const totalSelected = selections.reduce((sum, s) => sum + s.quantity, 0);
 
-  // Extract unique colors
+  // Extract unique sizes and colors disponíveis nas variações
+  const uniqueSizes = Array.from(new Set(
+    product?.product_variations?.map(v => v.size).filter(Boolean) || []
+  )) as string[];
+
   const uniqueColors = Array.from(new Set(
     product?.product_variations?.map(v => v.color).filter(Boolean) || []
   )) as string[];
 
-  // Filter variations by selected color
+  // Filtra variações pela combinação de tamanho/cor selecionados
   const filteredVariations = product?.product_variations?.filter(v => {
-    if (!selectedColor) return true;
-    return v.color === selectedColor;
+    if (selectedColor && v.color !== selectedColor) return false;
+    if (selectedSize && v.size !== selectedSize) return false;
+    return true;
   }) || [];
 
   if (!product) return null;
@@ -142,6 +149,7 @@ export const AddToCartDialog = ({
       if (!open) {
         setSelections([]);
         setSelectedColor(null);
+        setSelectedSize(null);
       }
       onOpenChange(open);
     }}>
@@ -177,29 +185,58 @@ export const AddToCartDialog = ({
             </div>
           </div>
 
-          {/* Color filter */}
-          {uniqueColors.length > 1 && (
-            <div>
-              <p className="text-sm font-medium mb-2">Filtrar por cor:</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge 
-                  variant={selectedColor === null ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedColor(null)}
-                >
-                  Todas
-                </Badge>
-                {uniqueColors.map(color => (
-                  <Badge 
-                    key={color}
-                    variant={selectedColor === color ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedColor(color)}
-                  >
-                    {color}
-                  </Badge>
-                ))}
-              </div>
+          {/* Filtros de tamanho e cor */}
+          {(uniqueSizes.length > 1 || uniqueColors.length > 1) && (
+            <div className="space-y-3">
+              {uniqueSizes.length > 1 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Filtrar por tamanho:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge 
+                      variant={selectedSize === null ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedSize(null)}
+                    >
+                      Todos
+                    </Badge>
+                    {uniqueSizes.map(size => (
+                      <Badge 
+                        key={size}
+                        variant={selectedSize === size ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => setSelectedSize(size)}
+                      >
+                        {size}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uniqueColors.length > 1 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Filtrar por cor:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge 
+                      variant={selectedColor === null ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedColor(null)}
+                    >
+                      Todas
+                    </Badge>
+                    {uniqueColors.map(color => (
+                      <Badge 
+                        key={color}
+                        variant={selectedColor === color ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => setSelectedColor(color)}
+                      >
+                        {color}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

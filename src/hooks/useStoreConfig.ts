@@ -9,6 +9,14 @@ export interface StoreConfig {
   store_address: string;
   store_cnpj: string;
   store_logo_url: string;
+  /**
+   * Configurações de pagamento Asaas armazenadas em system_config.
+   * Mantidas como string para compatibilidade simples com a tabela.
+   */
+  asaas_enabled: string; // 'true' | 'false'
+  asaas_api_key: string;
+  asaas_environment: string; // 'sandbox' | 'production'
+  asaas_billing_type: string; // 'PIX' | 'BOLETO' | 'CREDIT_CARD'
 }
 
 const defaultConfig: StoreConfig = {
@@ -18,6 +26,10 @@ const defaultConfig: StoreConfig = {
   store_address: '',
   store_cnpj: '',
   store_logo_url: '',
+  asaas_enabled: 'false',
+  asaas_api_key: '',
+  asaas_environment: 'sandbox',
+  asaas_billing_type: 'PIX',
 };
 
 export function useStoreConfig() {
@@ -58,7 +70,7 @@ export function useStoreConfig() {
     try {
       const updates = Object.entries(newConfig).map(([key, value]) => ({
         config_key: key,
-        config_value: value || null,
+        config_value: value ?? null,
       }));
 
       for (const update of updates) {
