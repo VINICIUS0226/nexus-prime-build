@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode, Link2, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode, Share2 } from 'lucide-react';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -958,17 +958,16 @@ const Products = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleShareProduct(product);
                             }}
-                            className="h-8 px-2 text-xs font-medium text-primary border-primary/60 hover:bg-primary/10"
-                            title="Copiar link do produto para encaminhar"
+                            className="h-8 w-8 rounded-full border border-primary/40 bg-primary/5 text-primary hover:bg-primary/15"
+                            title="Compartilhar / copiar link do produto"
                           >
-                            <span className="mr-1 hidden sm:inline">Link</span>
-                            <ArrowUpRight className="h-3 w-3" />
+                            <Share2 className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"

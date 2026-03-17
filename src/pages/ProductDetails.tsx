@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus, Link2, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
@@ -404,14 +404,13 @@ const ProductDetails = () => {
                 <Badge variant="secondary" className="shrink-0">{product.category}</Badge>
               )}
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="icon"
                 onClick={handleShareProduct}
-                className="h-8 px-2 text-xs font-medium text-primary border-primary/60 hover:bg-primary/10"
-                title="Copiar link deste produto para encaminhar"
+                className="h-8 w-8 rounded-full border border-primary/40 bg-primary/5 text-primary hover:bg-primary/15"
+                title="Compartilhar / copiar link deste produto"
               >
-                <span className="mr-1 hidden sm:inline">Link</span>
-                <ArrowUpRight className="h-3 w-3" />
+                <Share2 className="h-4 w-4" />
               </Button>
             </div>
             {averageRating > 0 && (
