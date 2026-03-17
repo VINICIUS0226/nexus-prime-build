@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatPhone } from '@/lib/utils';
 
 interface Customer {
   id: string;
@@ -60,13 +61,6 @@ const paymentMethodLabels: Record<string, string> = {
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
-const formatPhone = (phone: string) => {
-  if (!phone) return '';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 11) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-  return phone;
-};
 
 export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(
   ({ sale, storeConfig }, ref) => {

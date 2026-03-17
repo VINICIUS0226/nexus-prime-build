@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Filter, ShoppingCart } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode } from 'lucide-react';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ProductCardGallery } from '@/components/ProductCardGallery';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
 import { useCart, CartItem } from '@/contexts/CartContext';
+import { toast as sonnerToast } from 'sonner';
 
 interface ProductVariation {
   id: string;
@@ -94,6 +96,90 @@ const Products = () => {
     selling_price: '',
     cost_price: '',
   });
+
+  // Barcode scanner: find product by barcode or SKU and add to cart directly
+  const handleBarcodeScan = useCallback((scannedCode: string) => {
+    const code = scannedCode.trim();
+
+    // 1. Try exact match on variation SKU
+    const matchedVariations = products.flatMap(p => 
+      (p.product_variations || [])
+        .filter(v => v.sku.toLowerCase() === code.toLowerCase())
+        .map(v => ({ product: p, variation: v }))
+    );
+
+    // 2. Try match on product barcode
+    const matchedByBarcode = matchedVariations.length === 0
+      ? products.filter(p => p.barcode?.toLowerCase() === code.toLowerCase())
+      : [];
+
+    // Case A: Exact single variation match by SKU → add directly to cart
+    if (matchedVariations.length === 1) {
+      const { product: p, variation: v } = matchedVariations[0];
+      const available = v.stock_quantity - v.reserved_quantity;
+      if (available <= 0) {
+        sonnerToast.error(`${p.name} - Sem estoque disponível`);
+        return;
+      }
+      const img = p.product_images?.find(i => i.is_primary)?.image_url || p.product_images?.[0]?.image_url || p.image_url;
+      addItems([{
+        variationId: v.id,
+        productId: p.id,
+        productName: p.name,
+        variationInfo: [v.size, v.color].filter(Boolean).join(' / '),
+        quantity: 1,
+        unitPrice: v.selling_price ?? p.selling_price ?? 0,
+        availableStock: available,
+        imageUrl: img || null,
+      }]);
+      sonnerToast.success(`Adicionado ao carrinho: ${p.name} ${[v.size, v.color].filter(Boolean).join(' / ')}`);
+      return;
+    }
+
+    // Case B: Multiple variations with same SKU → open dialog to choose
+    if (matchedVariations.length > 1) {
+      const p = matchedVariations[0].product;
+      setSelectedProduct(p);
+      setAddToCartDialogOpen(true);
+      sonnerToast.info(`${matchedVariations.length} variações encontradas para SKU ${code}. Selecione a desejada.`);
+      return;
+    }
+
+    // Case C: Match by product barcode
+    if (matchedByBarcode.length === 1) {
+      const p = matchedByBarcode[0];
+      const variations = p.product_variations || [];
+      if (variations.length === 1) {
+        const v = variations[0];
+        const available = v.stock_quantity - v.reserved_quantity;
+        if (available <= 0) {
+          sonnerToast.error(`${p.name} - Sem estoque disponível`);
+          return;
+        }
+        const img = p.product_images?.find(i => i.is_primary)?.image_url || p.product_images?.[0]?.image_url || p.image_url;
+        addItems([{
+          variationId: v.id,
+          productId: p.id,
+          productName: p.name,
+          variationInfo: [v.size, v.color].filter(Boolean).join(' / '),
+          quantity: 1,
+          unitPrice: v.selling_price ?? p.selling_price ?? 0,
+          availableStock: available,
+          imageUrl: img || null,
+        }]);
+        sonnerToast.success(`Adicionado ao carrinho: ${p.name}`);
+      } else {
+        setSelectedProduct(p);
+        setAddToCartDialogOpen(true);
+        sonnerToast.info(`Produto encontrado: ${p.name}. Selecione a variação.`);
+      }
+      return;
+    }
+
+    sonnerToast.error(`Nenhum produto encontrado para o código: ${code}`);
+  }, [products, addItems]);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan, enabled: !dialogOpen && !addToCartDialogOpen });
 
   useEffect(() => {
     fetchProducts();
@@ -177,7 +263,7 @@ const Products = () => {
           cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
           selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
           profit_margin:
-            formData.cost_price && parseFloat(formData.cost_price) > 0
+            formData.cost_price && parseFloat(formData.cost_price) > 0 && formData.selling_price && !isNaN(parseFloat(formData.selling_price))
               ? Math.round(
                   ((parseFloat(formData.selling_price) - parseFloat(formData.cost_price)) /
                     parseFloat(formData.cost_price)) *
@@ -234,13 +320,36 @@ const Products = () => {
     setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
+      // Deletar as variações primeiro para evitar bloqueio de Foreign Key
+      const { error: varError } = await supabase
+        .from('product_variations')
+        .delete()
+        .eq('product_id', productToDelete.id);
+        
+      if (varError) throw varError;
+
+      // Deletar as imagens também para evitar bloqueio (se a tabela existir)
+      const { error: imgError } = await supabase
+        .from('product_images')
+        .delete()
+        .eq('product_id', productToDelete.id);
+        
+      if (imgError && imgError.code !== 'PGRST204') {
+        // Ignora erro se a tabela não existir, mas lança se for outro erro
+        console.warn("Erro não crítico ao limpar imagens:", imgError);
+      }
+
+      // Agora é seguro deletar o produto pai
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Produto excluído",
-        description: "O produto foi removido com sucesso.",
+        description: "O produto e suas variações foram removidos com sucesso.",
       });
 
       fetchProducts();
@@ -412,7 +521,7 @@ const Products = () => {
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoria</Label>
                     <Select
-                      value={formData.category}
+                      value={formData.category || undefined}
                       onValueChange={(value) => setFormData({ ...formData, category: value })}
                     >
                       <SelectTrigger>
@@ -526,10 +635,10 @@ const Products = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="size">Tamanho</Label>
-                      <Select
-                        value={variationData.size}
-                        onValueChange={(value) => setVariationData({ ...variationData, size: value })}
-                      >
+                    <Select
+                      value={variationData.size || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, size: value })}
+                    >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione o tamanho" />
                         </SelectTrigger>
@@ -545,10 +654,10 @@ const Products = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="color">Cor</Label>
-                      <Select
-                        value={variationData.color}
-                        onValueChange={(value) => setVariationData({ ...variationData, color: value })}
-                      >
+                    <Select
+                      value={variationData.color || undefined}
+                      onValueChange={(value) => setVariationData({ ...variationData, color: value })}
+                    >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione a cor" />
                         </SelectTrigger>

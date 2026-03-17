@@ -209,22 +209,23 @@ const Reports = () => {
   const chartData = useMemo(() => {
     if (!salesData) return [];
 
-    const salesByDay: Record<string, { date: string; vendas: number; receita: number }> = {};
+    const salesByDay: Record<string, { fullDate: string; date: string; vendas: number; receita: number }> = {};
 
     salesData.forEach((sale) => {
-      const date = format(parseISO(sale.created_at), 'dd/MM', { locale: ptBR });
-      if (!salesByDay[date]) {
-        salesByDay[date] = { date, vendas: 0, receita: 0 };
+      // Usamos a data completa (yyyy-MM-dd) como chave para garantir a ordem cronológica
+      const fullDate = format(parseISO(sale.created_at), 'yyyy-MM-dd');
+      // Geramos a data formatada apenas para exibição no gráfico
+      const displayDate = format(parseISO(sale.created_at), 'dd/MM', { locale: ptBR });
+      
+      if (!salesByDay[fullDate]) {
+        salesByDay[fullDate] = { fullDate, date: displayDate, vendas: 0, receita: 0 };
       }
-      salesByDay[date].vendas += 1;
-      salesByDay[date].receita += Number(sale.total);
+      salesByDay[fullDate].vendas += 1;
+      salesByDay[fullDate].receita += Number(sale.total);
     });
 
-    return Object.values(salesByDay).sort((a, b) => {
-      const [dayA, monthA] = a.date.split('/').map(Number);
-      const [dayB, monthB] = b.date.split('/').map(Number);
-      return monthA - monthB || dayA - dayB;
-    });
+    // Ordena pela data completa em formato de texto (que no padrão ISO funciona perfeitamente)
+    return Object.values(salesByDay).sort((a, b) => a.fullDate.localeCompare(b.fullDate));
   }, [salesData]);
 
   const paymentMethodsData = useMemo(() => {

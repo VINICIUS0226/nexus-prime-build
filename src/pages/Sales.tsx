@@ -17,19 +17,23 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, DollarSign, Trash2, Eye, Search, Package, 
   CreditCard, Banknote, QrCode, Receipt, TrendingUp,
-  Minus, CheckCircle, Clock, User, Calendar, Printer
+  Minus, CheckCircle, Clock, User, Calendar, Printer,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SaleReceipt } from '@/components/SaleReceipt';
 import { usePrint } from '@/hooks/usePrint';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
+import { formatPhone } from '@/lib/utils';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
 
 interface Customer {
   id: string;
   full_name: string;
   phone: string;
   email: string | null;
+  trust_level?: 'low' | 'medium' | 'high' | null;
 }
 
 interface Product {
@@ -122,18 +126,6 @@ const paymentMethodLabels: Record<string, { label: string; icon: any }> = {
   bank_slip: { label: 'Boleto', icon: Receipt }
 };
 
-// Format phone number with mask (XX) XXXXX-XXXX
-const formatPhone = (phone: string): string => {
-  if (!phone) return '';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 11) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-  } else if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
-  }
-  return phone;
-};
-
 // Utility to sanitize and validate numeric inputs
 const sanitizeNumericInput = (value: string): number => {
   // Remove leading zeros except for decimals (e.g., "0.5")
@@ -184,6 +176,10 @@ const Sales = () => {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [barcodeInput, setBarcodeInput] = useState('');
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -223,7 +219,7 @@ const Sales = () => {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [prefilledCart, variations]);
+  }, [prefilledCart, variations, dialogOpen]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -237,7 +233,7 @@ const Sales = () => {
             payments(id, method, amount, status, paid_at)
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('customers').select('id, full_name, phone, email').order('full_name'),
+        supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase
           .from('product_variations')
           .select(`
@@ -316,7 +312,6 @@ const Sales = () => {
         setSaleItems([]);
       }
     } catch (error: any) {
-      console.error('Error fetching sale items:', error);
       setSaleItems([]);
     }
   };
@@ -332,11 +327,13 @@ const Sales = () => {
     setSelectedReservation(reservation.id);
     setSelectedCustomer(reservation.customer_id);
     
-    const cartItems: CartItem[] = (reservation.reservation_items || []).map(item => ({
-      variation: item.variation as ProductVariation,
-      quantity: item.quantity,
-      unit_price: item.unit_price
-    }));
+    const cartItems: CartItem[] = (reservation.reservation_items || [])
+      .filter(item => item.variation)
+      .map(item => ({
+        variation: item.variation as ProductVariation,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+      }));
     setCart(cartItems);
   };
 
@@ -469,7 +466,26 @@ const Sales = () => {
         }
       }
 
-      // Create sale
+      // 1. Just-In-Time Validation: Checa o estoque real no banco de dados
+      for (const item of cart) {
+        const { data: currentVar } = await supabase
+          .from('product_variations')
+          .select('stock_quantity, reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (currentVar) {
+          const availableNow = saleMode === 'reservation' 
+            ? currentVar.stock_quantity 
+            : currentVar.stock_quantity - currentVar.reserved_quantity;
+
+          if (availableNow < item.quantity) {
+            throw new Error(`Estoque insuficiente! O item ${item.variation.product?.name} foi vendido por outro usuário agora mesmo.`);
+          }
+        }
+      }
+
+      // 2. Insere a Venda
       const { data: sale, error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -488,7 +504,7 @@ const Sales = () => {
 
       if (saleError) throw saleError;
 
-      // Create payments
+      // 3. Insere os pagamentos
       for (const payment of payments) {
         const { error: paymentError } = await supabase
           .from('payments')
@@ -502,25 +518,28 @@ const Sales = () => {
         if (paymentError) throw paymentError;
       }
 
-      // Update stock
+      // 4. Dá baixa no estoque lendo o valor mais recente do banco
       for (const item of cart) {
-        if (saleMode === 'reservation') {
-          // From reservation: decrease both reserved and stock
-          await supabase
+        const { data: freshVar } = await supabase
+          .from('product_variations')
+          .select('stock_quantity, reserved_quantity')
+          .eq('id', item.variation.id)
+          .single();
+
+        if (freshVar) {
+          const updatePayload = saleMode === 'reservation'
+            ? {
+                stock_quantity: freshVar.stock_quantity - item.quantity,
+                reserved_quantity: Math.max(0, freshVar.reserved_quantity - item.quantity)
+              }
+            : { stock_quantity: freshVar.stock_quantity - item.quantity };
+
+          const { error: updateError } = await supabase
             .from('product_variations')
-            .update({
-              stock_quantity: item.variation.stock_quantity - item.quantity,
-              reserved_quantity: Math.max(0, item.variation.reserved_quantity - item.quantity)
-            })
+            .update(updatePayload)
             .eq('id', item.variation.id);
-        } else {
-          // Direct sale: only decrease stock
-          await supabase
-            .from('product_variations')
-            .update({
-              stock_quantity: item.variation.stock_quantity - item.quantity
-            })
-            .eq('id', item.variation.id);
+
+          if (updateError) throw updateError;
         }
       }
 
@@ -620,7 +639,9 @@ const Sales = () => {
       return saleDate.toDateString() === today.toDateString();
     }
     if (dateFilter === 'week') {
-      const weekAgo = new Date(today.setDate(today.getDate() - 7));
+      const todayCopy = new Date();
+      const weekAgo = new Date(todayCopy);
+      weekAgo.setDate(weekAgo.getDate() - 7);
       return saleDate >= weekAgo;
     }
     if (dateFilter === 'month') {
@@ -628,6 +649,16 @@ const Sales = () => {
     }
     return true;
   });
+
+  // Logica de Paginação Front-end
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSales = filteredSales.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateFilter]);
 
   const getPaymentStatusBadge = (payments: Payment[]) => {
     const allPaid = payments?.every(p => p.status === 'approved');
@@ -657,8 +688,7 @@ const Sales = () => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-primary text-primary-foreground border-0 shadow-elegant">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -701,8 +731,7 @@ const Sales = () => {
           </Card>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
@@ -713,7 +742,7 @@ const Sales = () => {
                 Nova Venda
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" preventCloseOnOutsideClick>
+            <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6" preventCloseOnOutsideClick>
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
               </DialogHeader>
@@ -803,7 +832,7 @@ const Sales = () => {
                                 </div>
                               )}
                               <div>
-                                <p className="font-medium text-sm">{variation.product?.name}</p>
+                                <p className="font-medium text-sm line-clamp-1">{variation.product?.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {variation.size} {variation.color && `/ ${variation.color}`} | Disp: {available}
                                 </p>
@@ -830,7 +859,6 @@ const Sales = () => {
               </Tabs>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                {/* Left: Cart */}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer">Cliente *</Label>
@@ -841,7 +869,10 @@ const Sales = () => {
                       <SelectContent>
                         {customers.map(customer => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.full_name} - {customer.phone}
+                            <div className="flex items-center gap-2">
+                              <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                              {customer.full_name} - {customer.phone}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -861,53 +892,59 @@ const Sales = () => {
                       </p>
                     ) : (
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {cart.map(item => (
-                          <div 
-                            key={item.variation.id}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded"
-                          >
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{item.variation.product?.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
-                              </p>
+                        {cart.map((item) => {
+                          return (
+                            <div
+                              key={item.variation.id}
+                              className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                            >
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{item.variation.product?.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.variation.size} {item.variation.color && `/ ${item.variation.color}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
+                                    onClick={() => updateCartQuantity(item.variation.id, -1)}
+                                    disabled={saleMode === 'reservation'}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-8 sm:w-6 text-center text-sm">{item.quantity}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
+                                    onClick={() => updateCartQuantity(item.variation.id, 1)}
+                                    disabled={saleMode === 'reservation'}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="w-20 text-right text-sm font-medium whitespace-nowrap">
+                                    R$ {(item.unit_price * item.quantity).toFixed(2)}
+                                  </span>
+                                  {saleMode === 'direct' && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-destructive"
+                                      onClick={() => removeFromCart(item.variation.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, -1)}
-                                disabled={saleMode === 'reservation'}
-                              >
-                                <Minus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-6 text-center text-sm">{item.quantity}</span>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-6 w-6"
-                                onClick={() => updateCartQuantity(item.variation.id, 1)}
-                                disabled={saleMode === 'reservation'}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                              <span className="w-20 text-right text-sm font-medium">
-                                R$ {(item.unit_price * item.quantity).toFixed(2)}
-                              </span>
-                              {saleMode === 'direct' && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 text-destructive"
-                                  onClick={() => removeFromCart(item.variation.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -964,7 +1001,6 @@ const Sales = () => {
                   </div>
                 </div>
 
-                {/* Right: Payment */}
                 <div className="space-y-4">
                   <div className="border rounded-lg p-4 bg-muted/30">
                     <div className="space-y-2 text-sm">
@@ -1005,7 +1041,7 @@ const Sales = () => {
                     ) : (
                       <div className="space-y-2">
                         {payments.map((payment, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded">
+                          <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-muted/50 rounded">
                             <Select
                               value={payment.method}
                               onValueChange={(v) => updatePayment(index, 'method', v)}
@@ -1057,7 +1093,7 @@ const Sales = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button 
                       variant="outline" 
                       className="flex-1"
@@ -1104,72 +1140,152 @@ const Sales = () => {
           </Select>
         </div>
 
-        {/* Sales Table */}
+        {/* Tabela com Paginação */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-primary hover:bg-primary">
-                  <TableHead className="text-primary-foreground font-semibold">Código</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Cliente</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Origem</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Total</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Pagamento</TableHead>
-                  <TableHead className="text-primary-foreground font-semibold">Data</TableHead>
-                  <TableHead className="text-right text-primary-foreground font-semibold">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Carregando...
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary hover:bg-primary">
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Código</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Cliente</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Origem</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Total</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Pagamento</TableHead>
+                    <TableHead className="text-primary-foreground font-semibold whitespace-nowrap py-4">Data</TableHead>
+                    <TableHead className="text-right text-primary-foreground font-semibold whitespace-nowrap py-4">Ações</TableHead>
                   </TableRow>
-                ) : filteredSales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma venda encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSales.map(sale => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-mono text-sm">
-                        #{sale.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{sale.customer?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
-                          {sale.reservation_id ? 'Reserva' : 'Direta'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {sale.total.toFixed(2)}
-                      </TableCell>
-                      <TableCell>{getPaymentStatusBadge(sale.payments || [])}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleViewSale(sale)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        Carregando...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : paginatedSales.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        Nenhuma venda encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedSales.map(sale => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-mono text-sm py-4">
+                          #{sale.id.slice(0, 8)}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="min-w-[150px]">
+                            <p className="font-medium line-clamp-1">{sale.customer?.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPhone(sale.customer?.phone || '')}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
+                            {sale.reservation_id ? 'Reserva' : 'Direta'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap py-4">
+                          R$ {sale.total.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="py-4">{getPaymentStatusBadge(sale.payments || [])}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap py-4">
+                          {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right py-4">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleViewSale(sale)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Rodapé com Paginação */}
+            {!loading && filteredSales.length > 0 && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t bg-muted/30">
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground w-full md:w-auto text-center sm:text-left">
+                  <span>
+                    Exibindo {startIndex + 1} - {Math.min(endIndex, filteredSales.length)} de {filteredSales.length} vendas
+                  </span>
+                  <div className="flex items-center gap-2 justify-center">
+                    <span>Por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-[70px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="h-8 w-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 px-2 sm:px-3"
+                  >
+                    <span className="hidden sm:inline">Próximo</span>
+                    <ChevronRight className="h-4 w-4 sm:ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1192,9 +1308,9 @@ const Sales = () => {
                     Visualizar Cupom Fiscal
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Cliente</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-lg border">
+                    <Label className="text-muted-foreground text-xs">Cliente</Label>
                     <p className="font-medium">{selectedSale.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">{formatPhone(selectedSale.customer?.phone || '')}</p>
                   </div>

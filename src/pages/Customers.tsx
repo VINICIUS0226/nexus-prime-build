@@ -12,8 +12,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { TrustLevelIndicator } from '@/components/TrustLevelIndicator';
+import { formatPhone } from '@/lib/utils';
 
 type CustomerType = 'client' | 'seller' | 'manager';
+
+type TrustLevel = 'low' | 'medium' | 'high';
 
 interface Customer {
   id: string;
@@ -30,6 +36,9 @@ interface Customer {
   state: string | null;
   data_consent: boolean;
   user_type: CustomerType;
+  notes?: string | null;
+  trust_level?: TrustLevel | null;
+  created_at?: string;
 }
 
 const USER_TYPE_LABELS: Record<CustomerType, string> = {
@@ -56,6 +65,8 @@ const Customers = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -72,6 +83,8 @@ const Customers = () => {
     state: '',
     data_consent: false,
     user_type: 'client' as CustomerType,
+    notes: '',
+    trust_level: '' as TrustLevel | '',
   });
 
   const fetchAddressByCep = async (cep: string) => {
@@ -90,9 +103,28 @@ const Customers = () => {
           city: data.localidade || '',
           state: data.uf || '',
         }));
+      } else {
+        // Se a API retornar erro (CEP não existe), limpa os campos para evitar envios incorretos
+        toast({
+          title: "CEP não encontrado",
+          description: "Por favor, verifique o CEP digitado e preencha os dados manualmente.",
+          variant: "destructive",
+        });
+        setFormData(prev => ({
+          ...prev,
+          street: '',
+          neighborhood: '',
+          city: '',
+          state: '',
+        }));
       }
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível consultar os Correios agora. Preencha manualmente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -141,6 +173,8 @@ const Customers = () => {
             state: formData.state || null,
             data_consent: formData.data_consent,
             user_type: formData.user_type,
+            notes: formData.notes || null,
+            trust_level: formData.trust_level || null,
           })
           .eq('id', editingCustomer.id);
 
@@ -165,6 +199,8 @@ const Customers = () => {
           state: formData.state || null,
           data_consent: formData.data_consent,
           user_type: formData.user_type,
+          notes: formData.notes || null,
+          trust_level: formData.trust_level || null,
         }]);
 
         if (error) throw error;
@@ -188,11 +224,16 @@ const Customers = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+  const openDeleteDialog = (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return;
 
     try {
-      const { error } = await supabase.from('customers').delete().eq('id', id);
+      const { error } = await supabase.from('customers').delete().eq('id', customerToDelete.id);
 
       if (error) throw error;
 
@@ -201,6 +242,8 @@ const Customers = () => {
         description: "O cliente foi removido com sucesso.",
       });
 
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
       fetchCustomers();
     } catch (error: any) {
       toast({
@@ -227,6 +270,8 @@ const Customers = () => {
       state: customer.state || '',
       data_consent: customer.data_consent,
       user_type: customer.user_type || 'client',
+      notes: customer.notes || '',
+      trust_level: (customer.trust_level as TrustLevel) || '',
     });
     setDialogOpen(true);
   };
@@ -246,6 +291,8 @@ const Customers = () => {
       state: '',
       data_consent: false,
       user_type: 'client',
+      notes: '',
+      trust_level: '',
     });
     setEditingCustomer(null);
   };
@@ -269,6 +316,11 @@ const Customers = () => {
     if (sortBy === 'name') {
       return a.full_name.localeCompare(b.full_name);
     }
+    if (sortBy === 'recent') {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    }
     return 0;
   });
 
@@ -278,20 +330,24 @@ const Customers = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedCustomers = sortedCustomers.slice(startIndex, endIndex);
 
-  // Reset para página 1 quando filtros mudam
+  // Reset para página 1 quando filtros ou ordenação mudam
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterType, filterStatus]);
+  }, [searchTerm, filterType, filterStatus, sortBy]);
 
   const activeCustomers = customers.filter(c => c.data_consent).length;
   const clientsCount = customers.filter(c => c.user_type === 'client').length;
   const sellersCount = customers.filter(c => c.user_type === 'seller').length;
   const managersCount = customers.filter(c => c.user_type === 'manager').length;
-  const formatPhone = (phone: any) => {
-    if (!phone) return "-";
-    const value = String(phone).replace(/\D/g, "");
-    if (value.length === 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-    if (value.length === 10) return value.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+
+  // Máscara robusta para CPF
+  const formatCPF = (cpf: any) => {
+    if (!cpf) return "-";
+    const value = String(cpf).replace(/\D/g, "");
+    
+    if (value.length >= 11) {
+      return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2}).*/, "$1.$2.$3-$4");
+    }
     return value;
   };
   return (
@@ -536,6 +592,54 @@ const Customers = () => {
                   </div>
                 </div>
 
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Observações</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value.slice(0, 1000) })}
+                      placeholder="Observações sobre o cliente..."
+                      rows={3}
+                      maxLength={1000}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground text-right">{formData.notes.length}/1000</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Indicador de confiabilidade</Label>
+                    <Select
+                      value={formData.trust_level || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, trust_level: v === 'none' ? '' : (v as TrustLevel) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem indicação" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem indicação</SelectItem>
+                        <SelectItem value="low">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-destructive" />
+                            Pouco confiável
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="medium">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                            Mais ou menos
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="high">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-600" />
+                            Muito confiável
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <p className="text-xs text-muted-foreground">
                   Ao ativar, o usuário consente com o uso de seus dados pessoais (LGPD)
                 </p>
@@ -652,7 +756,10 @@ const Customers = () => {
                         className={`hover:bg-muted/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
                       >
                         <TableCell className="font-medium text-foreground py-4 px-6 whitespace-nowrap">
-                          {customer.full_name}
+                          <div className="flex items-center gap-2">
+                            <TrustLevelIndicator level={customer.trust_level ?? null} size="sm" />
+                            {customer.full_name}
+                          </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground py-4 px-4 text-sm whitespace-nowrap">
                           {customer.email || '-'}
@@ -714,7 +821,7 @@ const Customers = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(customer.id)}
+                              onClick={() => openDeleteDialog(customer)}
                               className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                               title="Excluir"
                             >
@@ -809,6 +916,27 @@ const Customers = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Diálogo de confirmação de exclusão */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente <strong>"{customerToDelete?.full_name}"</strong>? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

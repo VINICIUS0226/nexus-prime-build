@@ -7,11 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare } from "lucide-react";
+import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
 import { ProductEditForm } from "@/components/ProductEditForm";
+import { AddToCartDialog } from "@/components/AddToCartDialog";
+import { ProductsFloatingCart } from "@/components/ProductsFloatingCart";
+import { useCart, CartItem } from "@/contexts/CartContext";
 
 interface ProductVariation {
   id: string;
@@ -77,12 +80,14 @@ const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { items: cartItems, addItems, updateQuantity, removeItem, clearCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [salesHistory, setSalesHistory] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [addToCartDialogOpen, setAddToCartDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -279,6 +284,30 @@ const ProductDetails = () => {
     }
     
     return images;
+  };
+
+  const handleAddToCart = (items: CartItem[]) => {
+    addItems(items);
+    toast({
+      title: "Adicionado ao carrinho",
+      description: `${items.reduce((s, i) => s + i.quantity, 0)} item(ns) adicionado(s)`,
+    });
+  };
+
+  const handleCheckout = (mode: 'sale' | 'reservation') => {
+    if (cartItems.length === 0) return;
+    const cartData = cartItems.map(item => ({
+      variationId: item.variationId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }));
+    const stateData = { prefilledCart: cartData };
+    if (mode === 'sale') {
+      navigate('/dashboard/sales', { state: stateData });
+    } else {
+      navigate('/dashboard/reservations', { state: stateData });
+    }
+    clearCart();
   };
 
   const images = allImages();
@@ -530,19 +559,10 @@ const ProductDetails = () => {
                   <Button 
                     className="flex-1 w-full"
                     disabled={getAvailableStock() === 0}
-                    onClick={() => navigate('/dashboard/sales')}
+                    onClick={() => setAddToCartDialogOpen(true)}
                   >
                     <ShoppingCart className="h-4 w-4 mr-2 shrink-0" />
-                    Vender
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 w-full"
-                    disabled={getAvailableStock() === 0}
-                    onClick={() => navigate('/dashboard/reservations')}
-                  >
-                    <Package className="h-4 w-4 mr-2 shrink-0" />
-                    Reservar
+                    Adicionar ao Carrinho
                   </Button>
                 </div>
               </CardContent>
@@ -776,6 +796,31 @@ const ProductDetails = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        {/* Add to Cart Dialog */}
+        {product && (
+          <AddToCartDialog
+            open={addToCartDialogOpen}
+            onOpenChange={setAddToCartDialogOpen}
+            product={{
+              ...product,
+              product_images: productImages.map(img => ({
+                id: img.id,
+                image_url: img.image_url,
+                is_primary: img.is_primary,
+              })),
+            }}
+            onAddToCart={handleAddToCart}
+          />
+        )}
+
+        {/* Floating Cart */}
+        <ProductsFloatingCart
+          items={cartItems}
+          onUpdateQuantity={updateQuantity}
+          onRemoveItem={removeItem}
+          onClearCart={clearCart}
+          onCheckout={handleCheckout}
+        />
       </div>
     </DashboardLayout>
   );
