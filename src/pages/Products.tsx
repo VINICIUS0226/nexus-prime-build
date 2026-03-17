@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Filter, ShoppingCart, ScanBarcode, Link2, ArrowUpRight } from 'lucide-react';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -368,6 +368,34 @@ const Products = () => {
 
   const handleEdit = (product: Product) => {
     navigate(`/dashboard/products/${product.id}`);
+  };
+
+  const handleShareProduct = (product: Product) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = `${origin}/dashboard/products/${product.id}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          toast({
+            title: 'Link copiado',
+            description: 'O link do produto foi copiado para a área de transferência.',
+          });
+        })
+        .catch(() => {
+          toast({
+            title: 'Não foi possível copiar',
+            description: 'Copie manualmente o link na barra de endereços.',
+            variant: 'destructive',
+          });
+        });
+    } else {
+      toast({
+        title: 'Recurso não suportado',
+        description: 'Copie manualmente o link na barra de endereços.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Abrir diálogo para adicionar ao carrinho
@@ -918,8 +946,8 @@ const Products = () => {
 
                     {/* Preço e estoque - empurrar para baixo */}
                     <div className="mt-auto">
-                      <div className="flex items-end justify-between mb-3">
-                        <div>
+                      <div className="flex items-end justify-between mb-3 gap-2">
+                        <div className="flex-1 min-w-0">
                           <p className="text-2xl font-bold text-primary">
                             {product.selling_price ? `R$ ${product.selling_price.toFixed(2)}` : 'Sem preço'}
                           </p>
@@ -928,17 +956,33 @@ const Products = () => {
                             {availableStock}/{totalStock} disponíveis
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeleteDialog(product);
-                          }}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShareProduct(product);
+                            }}
+                            className="h-8 px-2 text-xs font-medium text-primary border-primary/60 hover:bg-primary/10"
+                            title="Copiar link do produto para encaminhar"
+                          >
+                            <span className="mr-1 hidden sm:inline">Link</span>
+                            <ArrowUpRight className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteDialog(product);
+                            }}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                            title="Excluir produto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Botão de adicionar ao carrinho */}

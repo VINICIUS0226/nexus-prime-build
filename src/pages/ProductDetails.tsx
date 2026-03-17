@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Package, ShoppingCart, TrendingUp, AlertCircle, Star, ChevronLeft, ChevronRight, Image as ImageIcon, MessageSquare, Plus, Minus, Link2, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageUpload } from "@/components/ProductImageUpload";
@@ -320,6 +320,42 @@ const ProductDetails = () => {
     setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  const handleShareProduct = () => {
+    const href = typeof window !== "undefined" ? window.location.href : "";
+
+    if (!href) {
+      toast({
+        title: "Não foi possível gerar o link",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(href)
+        .then(() => {
+          toast({
+            title: "Link copiado",
+            description: "O link deste produto foi copiado para a área de transferência.",
+          });
+        })
+        .catch(() => {
+          toast({
+            title: "Não foi possível copiar",
+            description: "Copie manualmente o link na barra de endereços.",
+            variant: "destructive",
+          });
+        });
+    } else {
+      toast({
+        title: "Recurso não suportado",
+        description: "Copie manualmente o link na barra de endereços.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -367,6 +403,16 @@ const ProductDetails = () => {
               {product.category && (
                 <Badge variant="secondary" className="shrink-0">{product.category}</Badge>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShareProduct}
+                className="h-8 px-2 text-xs font-medium text-primary border-primary/60 hover:bg-primary/10"
+                title="Copiar link deste produto para encaminhar"
+              >
+                <span className="mr-1 hidden sm:inline">Link</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </Button>
             </div>
             {averageRating > 0 && (
               <div className="flex flex-wrap items-center gap-2 mt-1">
