@@ -178,9 +178,9 @@ const Reservations = () => {
             )
           `)
           .order('created_at', { ascending: false }),
-        // Clientes com indicador de confiabilidade. Usamos apenas trust_level para
-        // evitar erro quando turst_level não existe na instalação.
-        supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
+        // Clientes: usamos select('*') para evitar qualquer problema de coluna ausente
+        // (trust_level/turst_level) em instalações com esquemas diferentes.
+        supabase.from('customers').select('*').order('full_name'),
         supabase.from('products').select('*').order('name'),
         supabase
           .from('product_variations')
