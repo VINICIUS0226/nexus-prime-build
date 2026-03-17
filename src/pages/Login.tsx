@@ -26,12 +26,16 @@ const Login = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/client/catalogs');
-      }
+    // Só redireciona depois que o usuário estiver definido
+    // e o papel (userRole) já tiver sido carregado do backend.
+    if (!user || userRole === null) {
+      return;
+    }
+
+    if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
+      navigate('/dashboard');
+    } else {
+      navigate('/client/catalogs');
     }
   }, [user, userRole, navigate]);
 
@@ -54,15 +58,9 @@ const Login = () => {
         description: "Bem-vindo de volta!",
       });
 
-      // Redireciona de acordo com o perfil do usuário
-      const { data: sessionData } = await supabase.auth.getSession();
-      const role = userRole || null;
-
-      if (role === 'admin' || role === 'employee' || role === 'super_admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/client/catalogs');
-      }
+      // Não faz redirecionamento direto aqui.
+      // O AuthContext vai atualizar user e userRole,
+      // e o useEffect acima decide a rota correta (dashboard x cliente)
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
