@@ -1142,10 +1142,77 @@ const Sales = () => {
           </Select>
         </div>
 
-        {/* Tabela com Paginação */}
+        {/* Lista mobile (cards) + tabela desktop com paginação */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile: cards com ações acessíveis */}
+            <div className="space-y-3 p-3 md:hidden">
+              {loading ? (
+                <p className="text-center py-6 text-muted-foreground">Carregando...</p>
+              ) : paginatedSales.length === 0 ? (
+                <p className="text-center py-6 text-muted-foreground">Nenhuma venda encontrada</p>
+              ) : (
+                paginatedSales.map((sale) => (
+                  <div
+                    key={sale.id}
+                    className="border rounded-lg p-3 bg-card shadow-sm flex flex-col gap-2"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        #{sale.id.slice(0, 8)}
+                      </span>
+                      <Badge variant={sale.reservation_id ? 'default' : 'outline'}>
+                        {sale.reservation_id ? 'Reserva' : 'Direta'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm line-clamp-1">
+                        {sale.customer?.full_name || 'Sem cliente'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPhone(sale.customer?.phone || '')}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-xs">Total</span>
+                        <span className="font-semibold">
+                          R$ {sale.total.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-muted-foreground text-xs">Data</span>
+                        <span className="text-xs">
+                          {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 pt-1">
+                      <div className="flex justify-between items-center">
+                        <div>{getPaymentStatusBadge(sale.payments || [])}</div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 w-full">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-3 text-xs flex-1"
+                          onClick={() => handleViewSale(sale)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Detalhes
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop: tabela com scroll horizontal */}
+            <div className="overflow-x-auto hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary">
@@ -1211,7 +1278,7 @@ const Sales = () => {
               </Table>
             </div>
 
-            {/* Rodapé com Paginação */}
+            {/* Rodapé com Paginação (compartilhado) */}
             {!loading && filteredSales.length > 0 && (
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t bg-muted/30">
                 <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground w-full md:w-auto text-center sm:text-left">

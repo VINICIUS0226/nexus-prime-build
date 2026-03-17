@@ -845,10 +845,97 @@ const Reservations = () => {
           </Select>
         </div>
 
-        {/* Tabela com Paginação */}
+        {/* Lista mobile (cards) + tabela desktop com paginação */}
         <Card className="border-2 shadow-elegant">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Mobile: cards com botões acessíveis */}
+            <div className="space-y-3 p-3 md:hidden">
+              {loading ? (
+                <p className="text-center py-6 text-muted-foreground">Carregando...</p>
+              ) : paginatedReservations.length === 0 ? (
+                <p className="text-center py-6 text-muted-foreground">Nenhuma reserva encontrada</p>
+              ) : (
+                paginatedReservations.map((reservation) => (
+                  <div
+                    key={reservation.id}
+                    className="border rounded-lg p-3 bg-card shadow-sm flex flex-col gap-2"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {reservation.bag_code || reservation.id.slice(0, 8)}
+                      </span>
+                      {getStatusBadge(reservation.status)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm line-clamp-1">
+                        {reservation.customer?.full_name || 'Sem cliente'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPhone(reservation.customer?.phone || '')}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-xs">Itens</span>
+                        <span className="font-medium">
+                          {reservation.reservation_items?.reduce((sum, item) => sum + item.quantity, 0) || 0} itens
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-muted-foreground text-xs">Total</span>
+                        <span className="font-semibold">
+                          R$ {getReservationTotal(reservation).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>
+                        {format(new Date(reservation.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2 pt-1 w-full">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-8 text-xs"
+                        onClick={() => {
+                          setSelectedReservation(reservation);
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Detalhes
+                      </Button>
+                      {reservation.status === 'active' && (
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-8 text-xs text-success border-success"
+                            onClick={() => handleConvertToSale(reservation)}
+                          >
+                            <DollarSign className="h-3 w-3 mr-1" />
+                            Venda
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-8 text-xs text-destructive border-destructive"
+                            onClick={() => openCancelDialog(reservation)}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop: tabela com scroll horizontal */}
+            <div className="overflow-x-auto hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary border-b-0">
