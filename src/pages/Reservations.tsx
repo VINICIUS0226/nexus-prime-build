@@ -178,6 +178,8 @@ const Reservations = () => {
             )
           `)
           .order('created_at', { ascending: false }),
+        // Clientes com indicador de confiabilidade. Usamos apenas trust_level para
+        // evitar erro quando turst_level não existe na instalação.
         supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase.from('products').select('*').order('name'),
         supabase
@@ -194,7 +196,7 @@ const Reservations = () => {
       if (variationsRes.error) throw variationsRes.error;
 
       setReservations(reservationsRes.data as any || []);
-      setCustomers(customersRes.data || []);
+      setCustomers((customersRes.data || []) as any);
       setProducts(productsRes.data || []);
       setVariations(variationsRes.data as any || []);
     } catch (error: any) {
@@ -1043,7 +1045,7 @@ const Reservations = () => {
                     <Label className="text-muted-foreground">Cliente</Label>
                     <p className="font-medium">{selectedReservation.customer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
-                    {formatPhone(selectedReservation.customer?.phone)}
+                      {formatPhone(selectedReservation.customer?.phone || '')}
                     </p>
                   </div>
                   <div>

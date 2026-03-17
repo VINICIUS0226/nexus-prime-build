@@ -233,6 +233,10 @@ const Sales = () => {
             payments(id, method, amount, status, paid_at)
           `)
           .order('created_at', { ascending: false }),
+        // Clientes com indicador de confiabilidade (trust_level).
+        // Selecionamos tanto trust_level quanto um possível turst_level legado, mas
+        // como algumas instalações não possuem a coluna com erro de digitação,
+        // mantemos apenas trust_level aqui para evitar erros 42703.
         supabase.from('customers').select('id, full_name, phone, email, trust_level').order('full_name'),
         supabase
           .from('product_variations')
@@ -267,7 +271,7 @@ const Sales = () => {
       if (reservationsRes.error) throw reservationsRes.error;
 
       setSales(salesRes.data as any || []);
-      setCustomers(customersRes.data || []);
+      setCustomers((customersRes.data || []) as any);
       setVariations(variationsRes.data as any || []);
       setReservations(reservationsRes.data as any || []);
       setFreightConfigs(freightRes.data || []);
