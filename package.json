@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "start": "node server.js",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "import:products": "node scripts/import-products-from-xml.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -66,7 +67,9 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "fast-xml-parser": "^4.5.0",
+    "adm-zip": "^0.5.16"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

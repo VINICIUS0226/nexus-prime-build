@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Store, Upload, Loader2, Save, X, Palette, Sun, Moon, Monitor, Check, Truck, Plus, Trash2, Edit } from 'lucide-react';
+import { Store, Upload, Loader2, Save, X, Palette, Sun, Moon, Monitor, Check, Truck, Plus, Trash2, Edit, Lock } from 'lucide-react';
 import { useStoreConfig } from '@/hooks/useStoreConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 
 interface FreightConfig {
   id: string;
@@ -52,9 +53,14 @@ const Settings = () => {
     store_address: '',
     store_cnpj: '',
     store_logo_url: '',
+    asaas_enabled: 'false',
+    asaas_api_key: '',
+    asaas_environment: 'sandbox',
+    asaas_billing_type: 'PIX',
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -65,6 +71,10 @@ const Settings = () => {
         store_address: config.store_address || '',
         store_cnpj: config.store_cnpj || '',
         store_logo_url: config.store_logo_url || '',
+        asaas_enabled: config.asaas_enabled || 'false',
+        asaas_api_key: config.asaas_api_key || '',
+        asaas_environment: config.asaas_environment || 'sandbox',
+        asaas_billing_type: config.asaas_billing_type || 'PIX',
       });
     }
   }, [config, loading]);
@@ -451,6 +461,86 @@ const Settings = () => {
           </CardContent>
         </Card>
 
+        {/* Pagamentos / Asaas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Pagamentos (Asaas)
+            </CardTitle>
+            <CardDescription>
+              Configure a integração de pagamentos via Asaas para o portal do cliente
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Ativar Asaas</Label>
+                <Select
+                  value={formData.asaas_enabled}
+                  onValueChange={(v) => handleInputChange('asaas_enabled', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Ativado</SelectItem>
+                    <SelectItem value="false">Desativado</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Quando desativado, o checkout do cliente cria apenas a reserva, sem enviar cobrança ao Asaas.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Ambiente</Label>
+                <Select
+                  value={formData.asaas_environment}
+                  onValueChange={(v) => handleInputChange('asaas_environment', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sandbox">Sandbox (teste)</SelectItem>
+                    <SelectItem value="production">Produção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Forma padrão</Label>
+                <Select
+                  value={formData.asaas_billing_type}
+                  onValueChange={(v) => handleInputChange('asaas_billing_type', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PIX">PIX</SelectItem>
+                    <SelectItem value="BOLETO">Boleto</SelectItem>
+                    <SelectItem value="CREDIT_CARD">Cartão de Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="asaas_api_key">API Key do Asaas</Label>
+              <Input
+                id="asaas_api_key"
+                type="password"
+                placeholder="sk_live_..."
+                value={formData.asaas_api_key}
+                onChange={(e) => handleInputChange('asaas_api_key', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use a chave da API do painel Asaas para o ambiente selecionado. Ela será usada pelas funções de backend para criar cobranças.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Theme Settings */}
         <Card>
           <CardHeader>
@@ -579,6 +669,35 @@ const Settings = () => {
                     Salvar Tema
                   </>
                 )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Account / Password */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Conta e Segurança
+            </CardTitle>
+            <CardDescription>
+              Gerencie a senha de acesso ao sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Recomendamos atualizar sua senha periodicamente para manter sua conta segura.
+            </p>
+            <div className="flex justify-start">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setPasswordModalOpen(true)}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Alterar Senha
               </Button>
             </div>
           </CardContent>
@@ -725,6 +844,13 @@ const Settings = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Modal de Alteração de Senha */}
+        <ChangePasswordModal
+          open={passwordModalOpen}
+          onPasswordChanged={() => setPasswordModalOpen(false)}
+          onOpenChange={setPasswordModalOpen}
+        />
       </div>
     </DashboardLayout>
   );

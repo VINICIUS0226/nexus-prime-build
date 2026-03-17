@@ -164,6 +164,7 @@ const Sales = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [receiptPreviewOpen, setReceiptPreviewOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1181,9 +1182,14 @@ const Sales = () => {
             {selectedSale && (
               <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-end">
-                   <Button onClick={() => handlePrint('Cupom Fiscal - Venda', 'a4')} variant="outline" size="sm" className="gap-2">
+                  <Button
+                    onClick={() => setReceiptPreviewOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
                     <Printer className="h-4 w-4" />
-                    Imprimir Cupom Fiscal
+                    Visualizar Cupom Fiscal
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1277,19 +1283,41 @@ const Sales = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Hidden Receipt for Printing */}
-        <div className="hidden">
-          {selectedSale && (
-            <SaleReceipt
-              ref={printRef}
-              sale={{
-                ...selectedSale,
-                items: saleItems
-              }}
-              storeConfig={storeConfig}
-            />
-          )}
-        </div>
+        {/* Pré-visualização do Cupom Fiscal / Impressão */}
+        <Dialog open={receiptPreviewOpen} onOpenChange={setReceiptPreviewOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Pré-visualização do Cupom Fiscal</DialogTitle>
+            </DialogHeader>
+            {selectedSale && (
+              <div className="space-y-4">
+                <div ref={printRef}>
+                  <SaleReceipt
+                    sale={{
+                      ...selectedSale,
+                      items: saleItems
+                    }}
+                    storeConfig={storeConfig}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setReceiptPreviewOpen(false)}>
+                    Fechar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handlePrint('Cupom Fiscal - Venda', 'a4');
+                    }}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

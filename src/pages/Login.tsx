@@ -22,14 +22,18 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/client/catalogs');
+      }
     }
-  }, [user, navigate]);
+  }, [user, userRole, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +53,16 @@ const Login = () => {
         title: "Login realizado com sucesso!",
         description: "Bem-vindo de volta!",
       });
-      navigate('/dashboard');
+
+      // Redireciona de acordo com o perfil do usuário
+      const { data: sessionData } = await supabase.auth.getSession();
+      const role = userRole || null;
+
+      if (role === 'admin' || role === 'employee' || role === 'super_admin') {
+        navigate('/dashboard');
+      } else {
+        navigate('/client/catalogs');
+      }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({

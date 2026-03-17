@@ -23,6 +23,10 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
+import AdminCatalogs from "./pages/admin/AdminCatalogs";
+import ClientCatalogs from "./pages/client/ClientCatalogs";
+import ClientCatalogDetails from "./pages/client/ClientCatalogDetails";
+import ClientCheckout from "./pages/client/ClientCheckout";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +57,11 @@ const App = () => (
               <Route path="/admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/admin/stores" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/admin/users" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+              <Route path="/admin/catalogs" element={<SuperAdminRoute><AdminCatalogs /></SuperAdminRoute>} />
+              {/* Portal do Cliente */}
+              <Route path="/client/catalogs" element={<ProtectedRoute><ClientCatalogs /></ProtectedRoute>} />
+              <Route path="/client/catalogs/:id" element={<ProtectedRoute><ClientCatalogDetails /></ProtectedRoute>} />
+              <Route path="/client/checkout" element={<ProtectedRoute><ClientCheckout /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </CartProvider>

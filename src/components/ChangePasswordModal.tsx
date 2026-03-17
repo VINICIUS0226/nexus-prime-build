@@ -26,13 +26,21 @@ const passwordSchema = z.object({
 interface ChangePasswordModalProps {
   open: boolean;
   onPasswordChanged: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const ChangePasswordModal = ({ open, onPasswordChanged }: ChangePasswordModalProps) => {
+export const ChangePasswordModal = ({ open, onPasswordChanged, onOpenChange }: ChangePasswordModalProps) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const handleClose = () => {
+    if (loading) return;
+    setNewPassword('');
+    setConfirmPassword('');
+    onOpenChange?.(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +82,12 @@ export const ChangePasswordModal = ({ open, onPasswordChanged }: ChangePasswordM
   };
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={(value) => {
+      if (!value) {
+        handleClose();
+      }
+    }}>
+      <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -114,7 +126,15 @@ export const ChangePasswordModal = ({ open, onPasswordChanged }: ChangePasswordM
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Alterar Senha
