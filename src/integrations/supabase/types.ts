@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      customer_catalogs: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          filters: Json | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          filters?: Json | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          filters?: Json | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_catalogs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -27,13 +71,11 @@ export type Database = {
           full_name: string
           id: string
           neighborhood: string | null
-          notes: string | null
           number: string | null
           phone: string
           state: string | null
           store_id: string | null
           street: string | null
-          trust_level: 'low' | 'medium' | 'high' | null
           updated_at: string
           user_type: Database["public"]["Enums"]["customer_type"]
           zip_code: string | null
@@ -50,13 +92,11 @@ export type Database = {
           full_name: string
           id?: string
           neighborhood?: string | null
-          notes?: string | null
           number?: string | null
           phone: string
           state?: string | null
           store_id?: string | null
           street?: string | null
-          trust_level?: 'low' | 'medium' | 'high' | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
@@ -73,13 +113,11 @@ export type Database = {
           full_name?: string
           id?: string
           neighborhood?: string | null
-          notes?: string | null
           number?: string | null
           phone?: string
           state?: string | null
           store_id?: string | null
           street?: string | null
-          trust_level?: 'low' | 'medium' | 'high' | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["customer_type"]
           zip_code?: string | null
