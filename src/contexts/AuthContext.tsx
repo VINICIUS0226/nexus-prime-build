@@ -28,11 +28,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
+        .eq('user_id', userId);
+
       if (error) throw error;
-      setUserRole(data?.role || null);
+
+      const roles = (data || [])
+        .map((row) => row.role)
+        .filter((r): r is 'admin' | 'employee' | 'super_admin' => r != null);
+
+      // Caso o usuário tenha múltiplas roles na tabela (ex.: admin + employee),
+      // escolhemos a de maior prioridade para o redirecionamento.
+      if (roles.includes('super_admin')) setUserRole('super_admin');
+      else if (roles.includes('admin')) setUserRole('admin');
+      else if (roles.includes('employee')) setUserRole('employee');
+      else setUserRole(null);
     } catch (error) {
       console.error('Error fetching user role:', error);
     }

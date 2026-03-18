@@ -22,13 +22,17 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user, userRole } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     // Só redireciona depois que o usuário estiver definido
     // e o papel (userRole) já tiver sido carregado do backend.
-    if (!user || userRole === null) {
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
       return;
     }
 
@@ -36,9 +40,9 @@ const Login = () => {
       navigate('/dashboard');
     } else {
       // Client users go to the catalog/shopping flow
-      navigate('/client/catalogs');
+      navigate('/client/products');
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

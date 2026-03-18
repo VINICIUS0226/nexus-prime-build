@@ -1,11 +1,24 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { Store, ShoppingBag, ShieldCheck, Smartphone, Search, Package, Loader2 } from "lucide-react";
+import {
+  Store,
+  ShoppingBag,
+  ShieldCheck,
+  Smartphone,
+  Search,
+  Package,
+  Loader2,
+  Truck,
+  CreditCard,
+  Headphones,
+  MapPin,
+  Sparkles,
+} from "lucide-react";
 
 interface ProductImage {
   id: string;
@@ -34,10 +47,53 @@ interface Product {
 }
 
 const Landing = () => {
+  // Enquanto você ajusta a Landing, redirecionamos a tela inicial para o login.
+  // O restante da UI abaixo fica "comentada" (não renderizada) por enquanto.
+  if (true) {
+    return <Navigate to="/login" replace />;
+  }
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const heroSlides = [
+    {
+      badge: "Portal do Cliente",
+      title: (
+        <>
+          Compre com{" "}
+          <span className="text-primary">rapidez e segurança</span>
+        </>
+      ),
+      description:
+        "Catálogo sempre atualizado com reservas e pedidos direto pelo portal. A loja recebe sua solicitação organizada.",
+    },
+    {
+      badge: "Reservas Inteligentes",
+      title: (
+        <>
+          Escolha tamanho e cor,{" "}
+          <span className="text-primary">e envie seu pedido</span>
+        </>
+      ),
+      description:
+        "Você adiciona itens ao carrinho, confirma e acompanha o status em “Meus pedidos”.",
+    },
+    {
+      badge: "Mobile First",
+      title: (
+        <>
+          Funciona bem no <span className="text-primary">celular</span>
+        </>
+      ),
+      description:
+        "Interface responsiva pensada para facilitar a navegação e o fechamento do pedido em qualquer dispositivo.",
+    },
+  ];
+
+  const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -60,6 +116,13 @@ const Landing = () => {
       }
     };
     fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setHeroIndex((i) => (i + 1) % heroSlides.length);
+    }, 6500);
+    return () => window.clearInterval(t);
   }, []);
 
   const categories = Array.from(
@@ -121,6 +184,18 @@ const Landing = () => {
             </div>
           </div>
 
+          <div className="flex-1 max-w-xl px-3 hidden lg:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar no catálogo..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-background"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <Link to="/login">
               <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
@@ -139,28 +214,95 @@ const Landing = () => {
       {/* Hero Banner */}
       <section className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b">
         <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-          <div className="max-w-2xl space-y-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
-              Moda infantil com{" "}
-              <span className="text-primary">qualidade e estilo</span>
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground">
-              Explore nosso catálogo completo. Faça login para reservar peças e
-              comprar com condições especiais.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <ShoppingBag className="h-3.5 w-3.5 text-primary" />
-                Catálogo atualizado
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                Compra segura
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Smartphone className="h-3.5 w-3.5 text-primary" />
-                Acesse pelo celular
-              </span>
+          <div className="grid gap-6 md:grid-cols-2 items-center">
+            <div className="space-y-4">
+              <Badge variant="secondary" className="bg-primary/10 border-primary/20 text-primary">
+                {heroSlides[heroIndex].badge}
+              </Badge>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+                {heroSlides[heroIndex].title}
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                {heroSlides[heroIndex].description}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Link to="/login" className="flex-1">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    Acessar Área do Cliente
+                  </Button>
+                </Link>
+                <Link to="/login" className="flex-1">
+                  <Button variant="outline" className="w-full border-primary/30 text-primary hover:bg-primary/5">
+                    Quero ser cliente
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <ShoppingBag className="h-3.5 w-3.5 text-primary" />
+                  Catálogo atualizado
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  Compra segura
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  Funciona no celular
+                </span>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="rounded-2xl border bg-background/70 backdrop-blur p-5 md:p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Portal do Cliente</p>
+                    <p className="font-semibold text-sm">
+                      {heroIndex === 0
+                        ? "Catálogo completo"
+                        : heroIndex === 1
+                          ? "Carrinho e confirmação"
+                          : "Experiência mobile"}
+                    </p>
+                  </div>
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border bg-primary/5 p-3">
+                    <p className="text-[10px] text-muted-foreground">Reservas</p>
+                    <p className="text-sm font-semibold">Ativas e organizadas</p>
+                    <p className="text-xs text-muted-foreground mt-1">Acompanhe em tempo real</p>
+                  </div>
+                  <div className="rounded-xl border bg-primary/5 p-3">
+                    <p className="text-[10px] text-muted-foreground">Catálogo</p>
+                    <p className="text-sm font-semibold">Produtos por cliente</p>
+                    <p className="text-xs text-muted-foreground mt-1">Filtro por tamanho e cor</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex gap-2">
+                  <div className="flex-1 rounded-xl bg-muted/40 h-24" />
+                  <div className="flex-1 rounded-xl bg-muted/40 h-24" />
+                </div>
+
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  {heroSlides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setHeroIndex(idx)}
+                      className={`h-2.5 w-2.5 rounded-full transition ${
+                        idx === heroIndex ? "bg-primary" : "bg-muted"
+                      }`}
+                      aria-label={`Slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -169,10 +311,10 @@ const Landing = () => {
       {/* Search + Filters */}
       <section className="max-w-7xl mx-auto w-full px-4 py-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="relative flex-1 w-full sm:max-w-sm">
+          <div className="relative flex-1 w-full lg:hidden">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar produtos..."
+              placeholder="Buscar no catálogo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-background"
@@ -196,6 +338,10 @@ const Landing = () => {
                 {cat}
               </Badge>
             ))}
+          </div>
+
+          <div className="text-xs text-muted-foreground sm:ml-auto">
+            Dica: use a busca no topo (ou no celular, pela seção de produtos).
           </div>
         </div>
       </section>
@@ -292,12 +438,10 @@ const Landing = () => {
       {/* CTA Banner */}
       <section className="border-t bg-primary/5">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center space-y-3">
-          <h2 className="text-xl font-bold text-foreground">
-            Quer comprar? Faça login ou peça acesso!
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Clientes cadastrados podem reservar peças, consultar disponibilidade
-            e fazer pedidos direto pelo portal.
+          <h2 className="text-xl font-bold text-foreground">Compra pelo portal, do jeito certo</h2>
+          <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+            Clientes autorizados reservam itens, confirmam pedidos e acompanham tudo em um único lugar.
+            A loja recebe as informações organizadas e prontas para atendimento.
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <Link to="/login">
@@ -312,11 +456,81 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Informações do portal */}
+      <section className="max-w-7xl mx-auto w-full px-4 py-10">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-primary" />
+                <p className="font-semibold">Logística e prazos</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Atualizamos informações de atendimento conforme a disponibilidade da loja.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <p className="font-semibold">Pagamentos e segurança</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                O fluxo do portal garante rastreabilidade do pedido e transparência no acompanhamento.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5 space-y-2">
+              <div className="flex items-center gap-2">
+                <Headphones className="h-4 w-4 text-primary" />
+                <p className="font-semibold">Atendimento</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Suporte para clientes cadastrados, com orientações para reservas e pedidos.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold">Como funciona</h3>
+              <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">1</div>
+                  <div>
+                    Faça login na área do cliente e acesse o catálogo disponível.
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">2</div>
+                  <div>
+                    Adicione ao carrinho e confirme o pedido (reserva).
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">3</div>
+                  <div>
+                    Acompanhe em “Meus pedidos” e siga as orientações do atendimento.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="w-full border-t bg-background">
         <div className="max-w-7xl mx-auto px-4 py-3 text-xs text-muted-foreground flex flex-col sm:flex-row gap-2 justify-between">
           <span>© {new Date().getFullYear()} PQueninos. Todos os direitos reservados.</span>
-          <span>Portal para clientes autorizados.</span>
+          <span className="inline-flex items-center gap-2">
+            <MapPin className="h-3.5 w-3.5" />
+            Atendimento para clientes autorizados
+          </span>
         </div>
       </footer>
     </div>
