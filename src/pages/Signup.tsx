@@ -35,7 +35,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/client/catalogs');
     }
   }, [user, navigate]);
 
