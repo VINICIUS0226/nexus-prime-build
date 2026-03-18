@@ -231,12 +231,30 @@ const ClientCheckout = () => {
   const freightFlags = useMemo(() => {
     const entries = freightConfigs.map((fc) => ({ ...fc, k: normalizeKey(fc.name) }));
 
+    // Fallback: se por algum motivo a tabela não carregar (ex.: RLS/configuração),
+    // não deixe o usuário sem opções. Mantém PAC/SEDEX/SEDEX10 habilitados
+    // e oferece retirada/mototaxi quando for mesma cidade/UF.
+    if (entries.length === 0) {
+      return {
+        pacEnabled: true,
+        sedexEnabled: true,
+        sedex10Enabled: true,
+        mototaxiEnabled: true,
+        retiradaEnabled: true,
+        pacConfig: null,
+        sedexConfig: null,
+        sedex10Config: null,
+        mototaxiConfig: null,
+        retiradaConfig: null,
+      };
+    }
+
     const pac = entries.find((e) => e.k.includes('pac'));
     const sedex10 = entries.find((e) => e.k.includes('sedex10') || (e.k.includes('sedex') && e.k.includes('10')));
     const sedex = entries.find((e) => e.k.includes('sedex') && !e.k.includes('sedex10') && !e.k.endsWith('10'));
 
     const mototaxi = entries.find((e) => e.k.includes('mototaxi'));
-    const retirada = entries.find((e) => e.k.includes('retirada') && (e.k.includes('loja') || true));
+    const retirada = entries.find((e) => e.k.includes('retirada') && e.k.includes('loja'));
 
     return {
       pacEnabled: !!pac,
