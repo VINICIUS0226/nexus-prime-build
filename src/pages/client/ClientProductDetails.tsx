@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
@@ -98,6 +99,12 @@ const ClientProductDetails = () => {
   const [intent, setIntent] = useState<'add' | 'buy'>('add');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
+  // Estado do formulário de avaliação (comentários/notas)
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewTitle, setReviewTitle] = useState<string>('');
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [reviewSubmitting, setReviewSubmitting] = useState<boolean>(false);
+
   const normalizeImageUrl = (value: string | null | undefined): string | null => {
     if (!value) return null;
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
@@ -172,6 +179,110 @@ const ClientProductDetails = () => {
 
     fetchDetails();
   }, [id, toast]);
+
+  const reloadReviews = async () => {
+    if (!id) return;
+    try {
+      const { data: reviewsData, error: reviewsErr } = await supabase
+        .from('product_reviews')
+        .select('id, rating, title, comment, is_verified_purchase, created_at')
+        .eq('product_id', id)
+        .order('created_at', { ascending: false });
+
+      if (reviewsErr) throw reviewsErr;
+      setReviews((reviewsData || []) as ProductReview[]);
+    } catch (err: unknown) {
+      console.error('Erro ao recarregar avaliações:', err);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!user?.email) {
+      toast({
+        title: 'Faça login para avaliar',
+        description: 'Você precisa estar logado para enviar sua avaliação.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!id) return;
+    if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
+      toast({ title: 'Nota inválida', description: 'Selecione uma nota de 1 a 5.', variant: 'destructive' });
+      return;
+    }
+
+    const trimmedComment = reviewComment.trim();
+    if (!trimmedComment) {
+      toast({ title: 'Comentário obrigatório', description: 'Escreva um comentário para enviar a avaliação.', variant: 'destructive' });
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      // Descobre o customer_id a partir do email (RLS permite leitura do próprio registro)
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (customerError) throw customerError;
+      if (!customer) throw new Error('Cliente não encontrado para este usuário.');
+
+      // Atualiza se já existir avaliação deste cliente para este produto
+      const { data: existingReview, error: existingErr } = await supabase
+        .from('product_reviews')
+        .select('id')
+        .eq('product_id', id)
+        .eq('customer_id', customer.id)
+        .maybeSingle();
+
+      if (existingErr) throw existingErr;
+
+      if (existingReview?.id) {
+        const { error: updateErr } = await supabase
+          .from('product_reviews')
+          .update({
+            rating: reviewRating,
+            title: reviewTitle.trim() || null,
+            comment: trimmedComment,
+            // Mantemos como false pois a UI só marca como verificado quando você implementa regra de compra.
+            is_verified_purchase: false,
+          })
+          .eq('id', existingReview.id);
+
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from('product_reviews')
+          .insert({
+            product_id: id,
+            customer_id: customer.id,
+            rating: reviewRating,
+            title: reviewTitle.trim() || null,
+            comment: trimmedComment,
+            is_verified_purchase: false,
+          });
+
+        if (insertErr) throw insertErr;
+      }
+
+      toast({ title: 'Avaliação enviada!', description: 'Obrigado por avaliar o produto.' });
+      setReviewSubmitting(false);
+      setReviewTitle('');
+      setReviewComment('');
+      setReviewRating(5);
+      await reloadReviews();
+    } catch (err: unknown) {
+      setReviewSubmitting(false);
+      toast({
+        title: 'Erro ao enviar avaliação',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   useEffect(() => {
     // ao trocar de produto, volta para a primeira imagem
@@ -354,12 +465,26 @@ const ClientProductDetails = () => {
   const freightFlags = useMemo(() => {
     const entries = freightConfigs.map((fc) => ({ ...fc, k: normalizeKey(fc.name) }));
 
+    // Fallback: se por algum motivo a tabela não carregar, não deixe a UI sem opções.
+    // Mantém PAC/SEDEX/SEDEX10 habilitados e oferece retirada/mototaxi quando for mesma cidade/UF.
+    if (entries.length === 0) {
+      return {
+        pacEnabled: true,
+        sedexEnabled: true,
+        sedex10Enabled: true,
+        mototaxiEnabled: true,
+        retiradaEnabled: true,
+        mototaxiConfig: null,
+        retiradaConfig: null,
+      };
+    }
+
     const pac = entries.find((e) => e.k.includes('pac'));
     const sedex10 = entries.find((e) => e.k.includes('sedex10') || (e.k.includes('sedex') && e.k.includes('10')));
     const sedex = entries.find((e) => e.k.includes('sedex') && !e.k.includes('sedex10') && !e.k.includes('10'));
 
     const mototaxi = entries.find((e) => e.k.includes('mototaxi'));
-    const retirada = entries.find((e) => e.k.includes('retirada') && (e.k.includes('loja') || true));
+    const retirada = entries.find((e) => e.k.includes('retirada') && e.k.includes('loja'));
 
     return {
       pacEnabled: !!pac,
@@ -748,6 +873,72 @@ const ClientProductDetails = () => {
                       : 'Este produto ainda não possui avaliações.'}
                   </span>
                 </div>
+
+                <Card className="border-dashed">
+                  <CardHeader>
+                    <CardTitle className="text-base">Avaliar este produto</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {!user?.email ? (
+                      <p className="text-sm text-muted-foreground">
+                        Faça login para enviar sua avaliação.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Sua nota</Label>
+                          <div className="flex gap-1">
+                            {Array.from({ length: 5 }).map((_, idx) => {
+                              const starValue = idx + 1;
+                              const active = starValue <= reviewRating;
+                              return (
+                                <button
+                                  key={starValue}
+                                  type="button"
+                                  className="p-0.5 rounded-md"
+                                  onClick={() => setReviewRating(starValue)}
+                                  aria-label={`Dar nota ${starValue}`}
+                                >
+                                  <Star
+                                    className={`h-5 w-5 ${active ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
+                                  />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Título (opcional)</Label>
+                          <Input
+                            value={reviewTitle}
+                            onChange={(e) => setReviewTitle(e.target.value)}
+                            placeholder="Ex: Excelente produto!"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Comentário</Label>
+                          <Textarea
+                            value={reviewComment}
+                            onChange={(e) => setReviewComment(e.target.value)}
+                            placeholder="Conte como foi sua experiência..."
+                            rows={4}
+                          />
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={handleSubmitReview}
+                            disabled={reviewSubmitting}
+                          >
+                            {reviewSubmitting ? 'Enviando...' : 'Enviar avaliação'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {reviews.length === 0 ? (
                   <div className="rounded-xl border p-4 text-muted-foreground text-sm">
