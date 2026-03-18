@@ -34,6 +34,41 @@ type Sale = {
   payments: Payment[];
 };
 
+type ReservationStatus =
+  | 'active'
+  | 'in_client_possession'
+  | 'returned'
+  | 'awaiting_payment'
+  | 'completed'
+  | 'cancelled';
+
+type Reservation = {
+  id: string;
+  created_at: string;
+  status: ReservationStatus;
+  bag_code: string | null;
+  notes: string | null;
+};
+
+const statusToReservationBadge = (status: ReservationStatus) => {
+  switch (status) {
+    case 'active':
+      return { variant: 'secondary' as const, label: 'Em andamento' };
+    case 'in_client_possession':
+      return { variant: 'outline' as const, label: 'Com o cliente' };
+    case 'awaiting_payment':
+      return { variant: 'outline' as const, label: 'Aguardando pagamento' };
+    case 'completed':
+      return { variant: 'default' as const, label: 'Concluído' };
+    case 'returned':
+      return { variant: 'destructive' as const, label: 'Devolvido' };
+    case 'cancelled':
+      return { variant: 'destructive' as const, label: 'Cancelado' };
+    default:
+      return { variant: 'secondary' as const, label: status };
+  }
+};
+
 const paymentStatusToBadge = (status: PaymentStatus) => {
   switch (status) {
     case 'approved':
@@ -53,6 +88,7 @@ const ClientOrders = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
@@ -75,16 +111,26 @@ const ClientOrders = () => {
           return;
         }
 
-        const { data: salesRes, error: salesErr } = await supabase
-          .from('sales')
-          .select(
-            'id, created_at, subtotal, freight_value, discount, total, notes, payments(id, method, amount, status, paid_at)'
-          )
-          .eq('customer_id', customer.id)
-          .order('created_at', { ascending: false });
+        const [reservationsRes, salesRes] = await Promise.all([
+          supabase
+            .from('reservations')
+            .select('id, created_at, status, bag_code, notes')
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('sales')
+            .select(
+              'id, reservation_id, created_at, subtotal, freight_value, discount, total, notes, payments(id, method, amount, status, paid_at)'
+            )
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false }),
+        ]);
 
-        if (salesErr) throw salesErr;
-        setSales((salesRes || []) as Sale[]);
+        if (reservationsRes.error) throw reservationsRes.error;
+        if (salesRes.error) throw salesRes.error;
+
+        setReservations((reservationsRes.data || []) as Reservation[]);
+        setSales((salesRes.data || []) as Sale[]);
       } catch (err: unknown) {
         console.error('Erro ao carregar pedidos do cliente:', err);
         toast({
@@ -102,19 +148,19 @@ const ClientOrders = () => {
 
   const emptyState = useMemo(
     () =>
-      !loading && sales.length === 0 ? (
+      !loading && reservations.length === 0 && sales.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             Você ainda não fez compras no portal.
           </CardContent>
         </Card>
       ) : null,
-    [loading, sales.length]
+    [loading, reservations.length, sales.length]
   );
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 w-full max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Minhas compras</h1>
@@ -151,6 +197,42 @@ const ClientOrders = () => {
         ) : (
           <>
             {emptyState}
+
+            {reservations.length > 0 ? (
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold text-foreground">Rastreamento (em processamento)</h2>
+                <div className="space-y-3">
+                  {reservations.map((r) => {
+                    const badge = statusToReservationBadge(r.status);
+                    return (
+                      <Card key={r.id}>
+                        <CardHeader>
+                          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <span className="break-all">Pedido #{r.id.slice(0, 8)}</span>
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
+                            <span>
+                              Criado em{' '}
+                              {format(new Date(r.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                            </span>
+                            <span>{r.bag_code ? `Bag: ${r.bag_code}` : 'Sem bag code'}</span>
+                          </div>
+
+                          {r.notes ? (
+                            <pre className="text-sm text-muted-foreground whitespace-pre-wrap">{r.notes}</pre>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Sem observações.</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             {sales.length > 0 ? (
               <div className="space-y-3">

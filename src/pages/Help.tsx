@@ -373,7 +373,7 @@ const Help = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6 w-full">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <HelpCircle className="h-8 w-8 text-primary" />

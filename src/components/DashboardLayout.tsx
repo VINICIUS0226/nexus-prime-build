@@ -259,7 +259,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
           onMenuClick={isMobile ? () => setSidebarExpanded(true) : undefined}
           showMenuButton={isMobile}
         />
-        <div className="p-4 md:p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1 w-full max-w-6xl mx-auto">
           {children}
         </div>
       </main>
