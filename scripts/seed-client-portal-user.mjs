@@ -10,7 +10,8 @@ import { createClient } from "@supabase/supabase-js";
 // SEED_CLIENT_PHONE
 // SEED_CLIENT_CATALOG_NAME
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+// Permite reaproveitar a URL que já existe no `.env` do frontend (`VITE_SUPABASE_URL`)
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
