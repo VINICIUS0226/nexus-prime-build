@@ -35,7 +35,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/client/catalogs');
     }
   }, [user, navigate]);
 
@@ -52,9 +52,9 @@ const Signup = () => {
       });
       setLoading(true);
 
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${window.location.origin}/client/catalogs`;
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
         options: {
@@ -67,6 +67,17 @@ const Signup = () => {
       });
 
       if (error) throw error;
+
+      // Create customer record for the client portal
+      if (data.user) {
+        await supabase.from('customers').insert({
+          full_name: validatedData.fullName,
+          email: validatedData.email,
+          phone: validatedData.phone || '00000000000',
+          user_type: 'client',
+          data_consent: true,
+        });
+      }
 
       toast({
         title: "Cadastro realizado!",

@@ -35,6 +35,7 @@ const Login = () => {
     if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
       navigate('/dashboard');
     } else {
+      // Client users go to the catalog/shopping flow
       navigate('/client/catalogs');
     }
   }, [user, userRole, navigate]);
@@ -160,12 +161,12 @@ const Login = () => {
             </Button>
           </form>
 
-          {/* <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-muted-foreground">
             Não possui acesso?{' '}
             <Link to="/signup" className="text-[#7B2869] hover:underline font-semibold">
               Criar sua conta
             </Link>
-          </div> */}
+          </div>
         </div>
       </div>
     </div>

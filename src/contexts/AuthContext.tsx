@@ -100,23 +100,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    // Always clear local state first to prevent stale session issues
+    setUser(null);
+    setSession(null);
+    setUserRole(null);
+    
     try {
       await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setUserRole(null);
-      toast({
-        title: "Logout realizado",
-        description: "Até logo!",
-      });
-      navigate('/login');
     } catch (error: any) {
-      toast({
-        title: "Erro ao fazer logout",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.warn('Logout request failed (session may already be expired):', error.message);
     }
+    
+    // Clear any stale tokens from localStorage
+    localStorage.removeItem('sb-tjhhozeaxggzlwzchrja-auth-token');
+    
+    toast({
+      title: "Logout realizado",
+      description: "Até logo!",
+    });
+    navigate('/');
   };
 
   return (
