@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SuperAdminRoute } from "@/components/SuperAdminRoute";
+import { ClientPortalRoute } from "@/components/ClientPortalRoute";
 import { ThemeInitializer } from "@/components/ThemeInitializer";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -29,6 +30,9 @@ import AdminCatalogs from "./pages/admin/AdminCatalogs";
 import ClientCatalogs from "./pages/client/ClientCatalogs";
 import ClientCatalogDetails from "./pages/client/ClientCatalogDetails";
 import ClientCheckout from "./pages/client/ClientCheckout";
+import ClientOrders from "./pages/client/ClientOrders";
+import ClientProducts from "./pages/client/ClientProducts";
+import ClientProductDetails from "./pages/client/ClientProductDetails";
 
 const queryClient = new QueryClient();
 
@@ -184,7 +188,9 @@ const App = () => (
                 path="/client/catalogs"
                 element={
                   <ProtectedRoute>
-                    <ClientCatalogs />
+                    <ClientPortalRoute>
+                      <ClientCatalogs />
+                    </ClientPortalRoute>
                   </ProtectedRoute>
                 }
               />
@@ -192,7 +198,29 @@ const App = () => (
                 path="/client/catalogs/:id"
                 element={
                   <ProtectedRoute>
-                    <ClientCatalogDetails />
+                    <ClientPortalRoute>
+                      <ClientCatalogDetails />
+                    </ClientPortalRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/client/products"
+                element={
+                  <ProtectedRoute>
+                    <ClientPortalRoute>
+                      <ClientProducts />
+                    </ClientPortalRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/client/products/:id"
+                element={
+                  <ProtectedRoute>
+                    <ClientPortalRoute>
+                      <ClientProductDetails />
+                    </ClientPortalRoute>
                   </ProtectedRoute>
                 }
               />
@@ -200,7 +228,19 @@ const App = () => (
                 path="/client/checkout"
                 element={
                   <ProtectedRoute>
-                    <ClientCheckout />
+                    <ClientPortalRoute>
+                      <ClientCheckout />
+                    </ClientPortalRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/client/orders"
+                element={
+                  <ProtectedRoute>
+                    <ClientPortalRoute>
+                      <ClientOrders />
+                    </ClientPortalRoute>
                   </ProtectedRoute>
                 }
               />

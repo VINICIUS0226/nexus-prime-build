@@ -24,6 +24,16 @@ export interface DashboardHeaderProps {
    * `onCheckout` está ativo.
    */
   clearCartOnCheckout?: boolean;
+  /**
+   * Texto do botão principal quando o checkout é do tipo "sale".
+   * No portal do cliente, usamos "Comprar".
+   */
+  saleButtonLabel?: string;
+  /**
+   * Controla se o portal cliente deve mostrar o botão de “Reservar”.
+   * No portal, normalmente mostramos apenas “Comprar/Vender”.
+   */
+  showReservationButton?: boolean;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -31,6 +41,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   showMenuButton = false,
   onCheckout,
   clearCartOnCheckout,
+  saleButtonLabel,
+  showReservationButton = true,
 }) => {
   const navigate = useNavigate();
   const { items, totalItems, totalValue, updateQuantity, removeItem, clearCart } = useCart();
@@ -232,16 +244,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     onClick={() => handleCheckout('sale')}
                   >
                     <ShoppingBag className="h-4 w-4 mr-2" />
-                    Vender
+                    {saleButtonLabel ?? 'Vender'}
                   </Button>
-                  <Button 
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleCheckout('reservation')}
-                  >
-                    <PackageCheck className="h-4 w-4 mr-2" />
-                    Reservar
-                  </Button>
+                  {showReservationButton && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleCheckout('reservation')}
+                    >
+                      <PackageCheck className="h-4 w-4 mr-2" />
+                      Reservar
+                    </Button>
+                  )}
                 </div>
               </div>
             </>
