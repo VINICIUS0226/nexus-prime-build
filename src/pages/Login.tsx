@@ -35,6 +35,7 @@ const Login = () => {
     if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
       navigate('/dashboard');
     } else {
+      // Client users go to the catalog/shopping flow
       navigate('/client/catalogs');
     }
   }, [user, userRole, navigate]);
