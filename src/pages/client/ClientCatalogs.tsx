@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout } from '@/components/DashboardLayout';
+import { ClientLayout } from '@/components/ClientLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +68,7 @@ const ClientCatalogs = () => {
   }, [user?.email]);
 
   return (
-    <DashboardLayout>
+    <ClientLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Catálogos Disponíveis</h1>
@@ -131,7 +131,7 @@ const ClientCatalogs = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </ClientLayout>
   );
 };
 

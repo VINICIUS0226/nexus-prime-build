@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { DashboardLayout } from '@/components/DashboardLayout';
+import { ClientLayout } from '@/components/ClientLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -195,7 +195,7 @@ const ClientCatalogDetails = () => {
   };
 
   return (
-    <DashboardLayout>
+    <ClientLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Catálogo de Produtos</h1>
@@ -343,7 +343,7 @@ const ClientCatalogDetails = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </ClientLayout>
   );
 };
 
