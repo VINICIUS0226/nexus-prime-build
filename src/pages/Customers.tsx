@@ -156,54 +156,72 @@ const Customers = () => {
     e.preventDefault();
     
     try {
+      const isMissingColumnError = (err: any, column: string) => {
+        const msg = String(err?.message || '');
+        return msg.includes(`Could not find the '${column}' column`) || msg.includes(`column "${column}"`) || msg.includes(`column ${column}`);
+      };
+
+      const buildPayload = () => ({
+        full_name: formData.full_name,
+        email: formData.email || null,
+        phone: formData.phone,
+        cpf: formData.cpf || null,
+        cep: formData.cep || null,
+        street: formData.street || null,
+        number: formData.number || null,
+        complement: formData.complement || null,
+        neighborhood: formData.neighborhood || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        data_consent: formData.data_consent,
+        user_type: formData.user_type,
+        notes: formData.notes || null,
+        trust_level: formData.trust_level || null,
+      });
+
+      const buildPayloadWithoutNotesAndTrust = () => {
+        const p: any = buildPayload();
+        delete p.notes;
+        delete p.trust_level;
+        return p;
+      };
+
       if (editingCustomer) {
         const { error } = await supabase
           .from('customers')
-          .update({
-            full_name: formData.full_name,
-            email: formData.email || null,
-            phone: formData.phone,
-            cpf: formData.cpf || null,
-            cep: formData.cep || null,
-            street: formData.street || null,
-            number: formData.number || null,
-            complement: formData.complement || null,
-            neighborhood: formData.neighborhood || null,
-            city: formData.city || null,
-            state: formData.state || null,
-            data_consent: formData.data_consent,
-            user_type: formData.user_type,
-            notes: formData.notes || null,
-            trust_level: formData.trust_level || null,
-          })
+          .update(buildPayload())
           .eq('id', editingCustomer.id);
 
-        if (error) throw error;
+        if (error) {
+          // Compatibilidade: algumas instalações não possuem notes/trust_level
+          if (isMissingColumnError(error, 'notes') || isMissingColumnError(error, 'trust_level')) {
+            const { error: retryError } = await supabase
+              .from('customers')
+              .update(buildPayloadWithoutNotesAndTrust())
+              .eq('id', editingCustomer.id);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
 
         toast({
           title: "Usuário atualizado!",
           description: "As informações foram atualizadas com sucesso.",
         });
       } else {
-        const { error } = await supabase.from('customers').insert([{
-          full_name: formData.full_name,
-          email: formData.email || null,
-          phone: formData.phone,
-          cpf: formData.cpf || null,
-          cep: formData.cep || null,
-          street: formData.street || null,
-          number: formData.number || null,
-          complement: formData.complement || null,
-          neighborhood: formData.neighborhood || null,
-          city: formData.city || null,
-          state: formData.state || null,
-          data_consent: formData.data_consent,
-          user_type: formData.user_type,
-          notes: formData.notes || null,
-          trust_level: formData.trust_level || null,
-        }]);
+        const { error } = await supabase.from('customers').insert([buildPayload()]);
 
-        if (error) throw error;
+        if (error) {
+          if (isMissingColumnError(error, 'notes') || isMissingColumnError(error, 'trust_level')) {
+            const { error: retryError } = await supabase
+              .from('customers')
+              .insert([buildPayloadWithoutNotesAndTrust()]);
+            if (retryError) throw retryError;
+          } else {
+            throw error;
+          }
+        }
 
         toast({
           title: "Cliente cadastrado!",
