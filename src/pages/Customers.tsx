@@ -157,8 +157,17 @@ const Customers = () => {
     
     try {
       const isMissingColumnError = (err: any, column: string) => {
+        const code = String(err?.code || '');
         const msg = String(err?.message || '');
-        return msg.includes(`Could not find the '${column}' column`) || msg.includes(`column "${column}"`) || msg.includes(`column ${column}`);
+        // Supabase/PostgREST: PGRST204 = column not found in schema cache
+        if (code === 'PGRST204') {
+          return msg.includes(`'${column}'`) || msg.toLowerCase().includes(column.toLowerCase());
+        }
+        return (
+          msg.includes(`Could not find the '${column}' column`) ||
+          msg.includes(`column "${column}"`) ||
+          msg.includes(`column ${column}`)
+        );
       };
 
       const buildPayload = () => ({
