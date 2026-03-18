@@ -18,8 +18,9 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const EMAIL = (process.env.SEED_CLIENT_EMAIL ?? "cliente.teste@pqueninos.com").trim();
-const PASSWORD = process.env.SEED_CLIENT_PASSWORD ?? "Teste@12345";
+// defaults pedidos por você (você pode sobrescrever via variáveis de ambiente)
+const EMAIL = (process.env.SEED_CLIENT_EMAIL ?? "viniciuslopes.vn@gmail.com").trim();
+const PASSWORD = (process.env.SEED_CLIENT_PASSWORD ?? "123456789").trim();
 const FULL_NAME = (process.env.SEED_CLIENT_FULL_NAME ?? "Cliente Teste PQueninos").trim();
 const PHONE = (process.env.SEED_CLIENT_PHONE ?? "11900000000").trim();
 const CATALOG_NAME = (process.env.SEED_CLIENT_CATALOG_NAME ?? "Catálogo Cliente Teste").trim();
@@ -45,6 +46,20 @@ async function main() {
 
     if (createUserErr) throw createUserErr;
     authUserId = createdUser.user.id;
+  } else {
+    // Se o usuário já existe, garantimos a senha desejada (se a API de update estiver disponível).
+    // Se essa chamada falhar, o usuário ainda poderá logar com a senha antiga.
+    try {
+      const updateFn = supabase?.auth?.admin?.updateUser;
+      if (typeof updateFn === "function") {
+        const { error: pwErr } = await supabase.auth.admin.updateUser(existingUser.id, { password: PASSWORD });
+        if (pwErr) {
+          console.warn("Aviso: não foi possível atualizar a senha do usuário existente:", pwErr.message);
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso: falha ao tentar atualizar a senha do usuário existente.", e);
+    }
   }
 
   // 2) Garantir registro em `customers` (mapeado por email)
