@@ -35,8 +35,10 @@ Deno.serve(async (req) => {
       if (createErr) throw createErr;
       authUserId = created.user.id;
     } else {
-      // Update password
-      await supabase.auth.admin.updateUser(existing!.id, { password });
+      // Update password - use updateUserById
+      try {
+        await supabase.auth.admin.updateUserById(existing!.id, { password });
+      } catch (_) { /* ignore if update fails */ }
     }
 
     // Ensure customer record exists
