@@ -18,7 +18,7 @@ import {
   Plus, DollarSign, Trash2, Eye, Search, Package, 
   CreditCard, Banknote, QrCode, Receipt, TrendingUp,
   Minus, CheckCircle, Clock, User, Calendar, Printer,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -142,7 +142,7 @@ const Sales = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const reservationIdParam = searchParams.get('reservation');
   const prefilledCart = (location.state as any)?.prefilledCart;
   const prefilledCustomer = (location.state as any)?.prefilledCustomer;
@@ -175,6 +175,14 @@ const Sales = () => {
   const [productSearch, setProductSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [barcodeInput, setBarcodeInput] = useState('');
+
+  const clearReservationParam = () => {
+    // Remove o query param que pode reabrir o Dialog automaticamente.
+    if (!reservationIdParam) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('reservation');
+    setSearchParams(next, { replace: true });
+  };
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -463,6 +471,7 @@ const Sales = () => {
           setIsSubmitting(false);
           setDialogOpen(false);
           resetForm();
+          clearReservationParam();
           fetchData();
           return;
         }
@@ -560,6 +569,7 @@ const Sales = () => {
 
       resetForm();
       setDialogOpen(false);
+      clearReservationParam();
       navigate('/dashboard/sales');
       fetchData();
     } catch (error: any) {
@@ -737,6 +747,7 @@ const Sales = () => {
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
+        if (!open) clearReservationParam();
           }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant">
@@ -748,6 +759,22 @@ const Sales = () => {
               <DialogHeader>
                 <DialogTitle>Registrar Venda</DialogTitle>
               </DialogHeader>
+              <div className="flex justify-end -mt-2 mb-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setDialogOpen(false);
+                    resetForm();
+                    clearReservationParam();
+                  }}
+                  aria-label="Fechar"
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
               
               <Tabs value={saleMode} onValueChange={(v) => {
                 setSaleMode(v as 'direct' | 'reservation');
@@ -1102,6 +1129,7 @@ const Sales = () => {
                       onClick={() => {
                         setDialogOpen(false);
                         resetForm();
+                        clearReservationParam();
                       }}
                     >
                       Cancelar
