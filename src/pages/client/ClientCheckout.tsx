@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout } from '@/components/DashboardLayout';
+import { ClientLayout } from '@/components/ClientLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
@@ -100,7 +100,7 @@ const ClientCheckout = () => {
   };
 
   return (
-    <DashboardLayout>
+    <ClientLayout>
       <div className="space-y-6 max-w-3xl">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Finalizar Pedido</h1>
@@ -175,7 +175,7 @@ const ClientCheckout = () => {
           </Button>
         </div>
       </div>
-    </DashboardLayout>
+    </ClientLayout>
   );
 };
 

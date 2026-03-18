@@ -11,9 +11,27 @@ import { useCart } from '@/contexts/CartContext';
 export interface DashboardHeaderProps {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
+  /**
+   * Override do comportamento do checkout (ex.: portal do cliente).
+   * Se informado, esta função roda no lugar da navegação padrão do dashboard.
+   */
+  onCheckout?: (
+    mode: 'sale' | 'reservation',
+    cartData: { variationId: string; quantity: number; unitPrice: number }[]
+  ) => void;
+  /**
+   * Controla se o carrinho deve ser limpo ao clicar em “Vender/Reservar” quando
+   * `onCheckout` está ativo.
+   */
+  clearCartOnCheckout?: boolean;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick, showMenuButton = false }) => {
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+  onMenuClick,
+  showMenuButton = false,
+  onCheckout,
+  clearCartOnCheckout,
+}) => {
   const navigate = useNavigate();
   const { items, totalItems, totalValue, updateQuantity, removeItem, clearCart } = useCart();
   const [cartOpen, setCartOpen] = useState(false);
@@ -27,6 +45,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ onMenuClick, s
       quantity: item.quantity,
       unitPrice: item.unitPrice
     }));
+
+    if (onCheckout) {
+      onCheckout(mode, cartData);
+      if (clearCartOnCheckout !== false) {
+        clearCart();
+      }
+      setCartOpen(false);
+      return;
+    }
 
     const stateData = { prefilledCart: cartData };
 
