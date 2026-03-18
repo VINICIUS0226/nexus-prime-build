@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface CartItem {
   variationId: string;
@@ -23,22 +24,48 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'products-cart';
-
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { user, loading: authLoading } = useAuth();
 
-  // Persistir no localStorage
+  const storageKey = useMemo(() => {
+    // Carrinho deve ser individual por usuário (não compartilhar entre logins).
+    if (!user) return 'products-cart-anon';
+    return `products-cart-${user.id}`;
+  }, [user]);
+
+  const [items, setItems] = useState<CartItem[]>([]);
+
+  // Carrega carrinho do usuário logado.
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    if (authLoading) return;
+
+    if (!user) {
+      setItems([]);
+      try {
+        localStorage.setItem('products-cart-anon', JSON.stringify([]));
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem(storageKey);
+      setItems(stored ? (JSON.parse(stored) as CartItem[]) : []);
+    } catch {
+      setItems([]);
+    }
+  }, [authLoading, user, storageKey]);
+
+  // Persiste carrinho do usuário logado.
+  useEffect(() => {
+    if (authLoading) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(items));
+    } catch {
+      // ignore localStorage write errors
+    }
+  }, [items, storageKey, authLoading]);
 
   const addItems = (newItems: CartItem[]) => {
     setItems(prev => {

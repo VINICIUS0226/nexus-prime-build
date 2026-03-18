@@ -22,7 +22,7 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
   const navItems = useMemo(
     () => [
       { name: 'Produtos', href: '/client/products', icon: ShoppingBag },
-      { name: 'Meus pedidos', href: '/client/orders', icon: Package },
+      { name: 'Minhas compras', href: '/client/orders', icon: Package },
     ],
     [],
   );

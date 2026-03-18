@@ -82,7 +82,7 @@ export const SuperAdminLayout = ({ children }: { children: React.ReactNode }) =>
 
       {/* Main content */}
       <main className="pl-64 flex flex-col min-h-screen">
-        <div className="p-8 flex-1">
+        <div className="p-8 flex-1 w-full max-w-6xl mx-auto">
           {children}
         </div>
       </main>
