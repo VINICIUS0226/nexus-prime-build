@@ -52,7 +52,7 @@ const Signup = () => {
       });
       setLoading(true);
 
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${window.location.origin}/client/catalogs`;
 
       const { error } = await supabase.auth.signUp({
         email: validatedData.email,
