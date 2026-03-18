@@ -301,6 +301,7 @@ const ClientCatalogDetails = () => {
                       images={product.product_images || []}
                       fallbackUrl={product.image_url}
                       productName={product.name}
+                      onClick={() => {}}
                     >
                       {product.category && (
                         <Badge
