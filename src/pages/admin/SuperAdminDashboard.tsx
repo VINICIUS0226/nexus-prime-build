@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Users, ShieldCheck } from 'lucide-react';
@@ -7,11 +7,23 @@ import { StoresManagement } from '@/components/admin/StoresManagement';
 import { RepresentativesManagement } from '@/components/admin/RepresentativesManagement';
 import { useStores } from '@/hooks/useStores';
 import { useRepresentatives } from '@/hooks/useRepresentatives';
+import { useLocation } from 'react-router-dom';
 
 const SuperAdminDashboard = () => {
   const { stores, loading: loadingStores } = useStores();
   const { representatives, loading: loadingReps } = useRepresentatives();
-  const [activeTab, setActiveTab] = useState('overview');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.pathname === '/admin/stores') return 'stores';
+    if (location.pathname === '/admin/users') return 'users';
+    return 'overview';
+  });
+
+  useEffect(() => {
+    if (location.pathname === '/admin/stores') setActiveTab('stores');
+    else if (location.pathname === '/admin/users') setActiveTab('users');
+    else setActiveTab('overview');
+  }, [location.pathname]);
 
   const activeStores = stores.filter((s) => s.is_active).length;
   const totalUsers = representatives.length;

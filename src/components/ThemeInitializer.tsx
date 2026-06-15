@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentStoreId } from '@/hooks/useCurrentStoreId';
 
-const THEME_CACHE_KEY = 'app-theme-cache';
+const THEME_CACHE_KEY_BASE = 'app-theme-cache';
 
 function applyThemeToDOM(mode: string, primaryColor: string) {
   const root = document.documentElement;
@@ -21,50 +23,96 @@ function applyThemeToDOM(mode: string, primaryColor: string) {
   }
 }
 
-function cacheTheme(mode: string, primary: string) {
+function cacheTheme(mode: string, primary: string, cacheKey: string) {
   try {
-    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify({ mode, primary }));
+    localStorage.setItem(cacheKey, JSON.stringify({ mode, primary }));
   } catch (e) {
     // localStorage not available
   }
 }
 
 export function ThemeInitializer() {
-  const [initialized, setInitialized] = useState(false);
+  const [appliedKey, setAppliedKey] = useState<string | null>(null);
+  const { userRole, loading: authLoading } = useAuth();
+  const { storeId, loading: storeIdLoading } = useCurrentStoreId();
 
   useEffect(() => {
-    if (initialized) return;
+    if (authLoading || storeIdLoading) return;
+
+    const nextAppliedKey = `${userRole ?? 'client'}:${storeId ?? 'global'}`;
+    if (appliedKey === nextAppliedKey) return;
 
     const initTheme = async () => {
       let mode = 'light';
       let primaryColor = '0 100% 71%';
 
       try {
-        const { data } = await supabase
-          .from('system_config')
-          .select('config_key, config_value')
-          .in('config_key', ['theme_mode', 'primary_color']);
+        const includeGlobalFallback = userRole !== null;
+        const cacheKey = storeId ? `${THEME_CACHE_KEY_BASE}:${storeId}` : `${THEME_CACHE_KEY_BASE}:global`;
 
-        data?.forEach((row) => {
-          if (row.config_key === 'theme_mode' && row.config_value) {
-            mode = row.config_value;
+        // Cache primeiro (reduz flash).
+        try {
+          const cachedRaw = localStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw) as { mode?: string; primary?: string };
+            if (cached.mode) mode = cached.mode;
+            if (cached.primary) primaryColor = cached.primary;
           }
-          if (row.config_key === 'primary_color' && row.config_value) {
-            primaryColor = row.config_value;
-          }
+        } catch {
+          // cache inválido/indisponível
+        }
+
+        // Busca no banco: store específica tem prioridade sobre o global.
+        const themeKeys = ['theme_mode', 'primary_color'];
+        const [storeRes, globalRes] = await Promise.all([
+          storeId
+            ? supabase
+                .from('system_config')
+                .select('config_key, config_value')
+                .eq('store_id', storeId)
+                .in('config_key', themeKeys)
+            : Promise.resolve({ data: [], error: null as any }),
+          includeGlobalFallback
+            ? supabase
+                .from('system_config')
+                .select('config_key, config_value')
+                .is('store_id', null)
+                .in('config_key', themeKeys)
+            : Promise.resolve({ data: [], error: null as any }),
+        ]);
+
+        if (storeRes.error) throw storeRes.error;
+        if (globalRes.error) throw globalRes.error;
+
+        const globalMap: Record<string, string> = {};
+        (globalRes.data || []).forEach((row: any) => {
+          if (row.config_key && row.config_value) globalMap[row.config_key] = row.config_value;
         });
+
+        const storeMap: Record<string, string> = {};
+        (storeRes.data || []).forEach((row: any) => {
+          if (row.config_key && row.config_value) storeMap[row.config_key] = row.config_value;
+        });
+
+        if (globalMap.theme_mode) mode = globalMap.theme_mode;
+        if (globalMap.primary_color) primaryColor = globalMap.primary_color;
+        if (storeMap.theme_mode) mode = storeMap.theme_mode;
+        if (storeMap.primary_color) primaryColor = storeMap.primary_color;
       } catch (error) {
         console.error('Error fetching theme from DB:', error);
       }
 
       // Apply and cache for next load
       applyThemeToDOM(mode, primaryColor);
-      cacheTheme(mode, primaryColor);
-      setInitialized(true);
+      const finalCacheKey = storeId
+        ? `${THEME_CACHE_KEY_BASE}:${storeId}`
+        : `${THEME_CACHE_KEY_BASE}:global`;
+      cacheTheme(mode, primaryColor, finalCacheKey);
+      setAppliedKey(nextAppliedKey);
     };
 
     initTheme();
-  }, [initialized]);
+  }, [appliedKey, authLoading, storeIdLoading, storeId, userRole]);
 
   return null;
 }

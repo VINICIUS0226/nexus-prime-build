@@ -38,12 +38,12 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeInitializer />
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <ThemeInitializer />
           <CartProvider>
             <Routes>
               {/* Rotas públicas */}

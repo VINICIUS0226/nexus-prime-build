@@ -1,6 +1,14 @@
 # Nexus Prime
 
-Sistema web para gestão comercial, estoque, reservas, vendas e portal do cliente.
+Projeto desenvolvido para entrega à Brisa em razão do processo de bolsa.
+
+O sistema contempla gestão comercial com controle de estoque, clientes, reservas, vendas, relatórios, configurações da loja e portal do cliente.
+
+## Acesso temporário
+
+Enquanto houver créditos disponíveis no servidor temporário, o projeto pode ser acessado em:
+
+https://nexus-prime-build.onrender.com/login
 
 ## Tecnologias
 
@@ -11,7 +19,7 @@ Sistema web para gestão comercial, estoque, reservas, vendas e portal do client
 - Tailwind CSS
 - shadcn/ui
 
-## Configuração local
+## Como rodar localmente
 
 Instale as dependências:
 
@@ -19,19 +27,33 @@ Instale as dependências:
 npm install
 ```
 
-Crie um arquivo `.env` com base em `.env.example` e preencha as variáveis do Supabase:
+Crie o arquivo `.env` usando o modelo `.env.example`:
 
 ```sh
 cp .env.example .env
 ```
 
-Inicie o ambiente de desenvolvimento:
+Preencha no `.env` as variáveis do Supabase:
+
+```env
+VITE_SUPABASE_PROJECT_ID=""
+VITE_SUPABASE_PUBLISHABLE_KEY=""
+VITE_SUPABASE_URL=""
+```
+
+Inicie o servidor de desenvolvimento:
 
 ```sh
 npm run dev
 ```
 
-## Build
+Por padrão, o Vite abre em:
+
+http://localhost:8080
+
+## Build de produção
+
+Gere os arquivos de produção:
 
 ```sh
 npm run build
@@ -42,3 +64,7 @@ Para servir o build com o servidor Express incluído:
 ```sh
 npm start
 ```
+
+## Observações de implantação
+
+O deploy temporário está configurado para ambiente Node.js. As variáveis do Supabase devem ser cadastradas no provedor de hospedagem para que autenticação, banco de dados e demais integrações funcionem corretamente.

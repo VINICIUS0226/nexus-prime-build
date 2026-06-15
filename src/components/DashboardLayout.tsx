@@ -159,7 +159,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                 )}
                 <div className="space-y-1">
                   {section.items.map((item) => {
-                    const isActive = location.pathname === item.href;
+                    const isActive =
+                      location.pathname === item.href ||
+                      location.pathname.startsWith(`${item.href}/`);
                     return (
                       <Link
                         key={item.name}
