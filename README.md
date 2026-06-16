@@ -4,6 +4,19 @@ Projeto preparado para entrega a Brisa no processo de bolsa.
 
 O sistema contempla gestao comercial com controle de estoque, clientes, reservas, vendas, pagamentos, relatorios, configuracoes da loja e portal do cliente.
 
+## Equipe e contato
+
+Desenvolvedores:
+
+- Mikael da Cruz - mikaelcruz.aluno@unipampa.edu.br
+- Renato M. Couto - renatocouto.aluno@unipampa.edu.br
+- Thiago F. Gomes - thiagogomes.aluno@unipampa.edu.br
+- Vinicius N. Lopes - viniciusnunez.aluno@unipampa.edu.br
+
+Orientador:
+
+- Samuel A. F. Monteiro - samuelmonteiro@unipampa.edu.br
+
 ## Acesso temporario
 
 Enquanto houver creditos disponiveis no servidor temporario, o projeto pode ser acessado em:
