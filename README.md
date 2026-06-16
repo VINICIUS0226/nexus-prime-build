@@ -1,14 +1,46 @@
 # Nexus Prime
 
-Projeto desenvolvido para entrega à Brisa em razão do processo de bolsa.
+Projeto preparado para entrega a Brisa no processo de bolsa.
 
-O sistema contempla gestão comercial com controle de estoque, clientes, reservas, vendas, relatórios, configurações da loja e portal do cliente.
+O sistema contempla gestao comercial com controle de estoque, clientes, reservas, vendas, pagamentos, relatorios, configuracoes da loja e portal do cliente.
 
-## Acesso temporário
+## Acesso temporario
 
-Enquanto houver créditos disponíveis no servidor temporário, o projeto pode ser acessado em:
+Enquanto houver creditos disponiveis no servidor temporario, o projeto pode ser acessado em:
 
 https://nexus-prime-build.onrender.com/login
+
+Usuario de teste para avaliacao:
+
+```txt
+Email: brisa.teste.nexus@gmail.com
+Senha: BrisaTeste123
+Perfil: cliente
+```
+
+## Prints do sistema
+
+### Tela de login
+
+![Tela de login](docs/screenshots/login.png)
+
+### Tela de cadastro
+
+![Tela de cadastro](docs/screenshots/signup.png)
+
+### Portal do cliente
+
+![Portal do cliente](docs/screenshots/client-products.png)
+
+## Fluxos existentes
+
+- Autenticacao: login, cadastro de cliente, recuperacao de senha e redirecionamento conforme perfil.
+- Portal do cliente: catalogos, listagem de produtos, detalhe do produto, carrinho, checkout e acompanhamento de pedidos.
+- Painel administrativo: indicadores, produtos, clientes, estoque, reservas, vendas, pagamentos, relatorios, configuracoes e ajuda.
+- Produtos e estoque: cadastro de produto, variacoes, SKU, imagens, importacao por XML, codigo de barras e ajustes manuais de estoque.
+- Clientes: cadastro, consulta, historico, enderecos, consentimento de dados e analise de confiabilidade.
+- Vendas e reservas: criacao de carrinho, reserva de itens, registro de venda, pagamentos, comprovantes e recibos.
+- Gestao superior: lojas, usuarios, catalogos e configuracoes gerais para ambientes com perfil administrativo.
 
 ## Tecnologias
 
@@ -18,10 +50,11 @@ https://nexus-prime-build.onrender.com/login
 - Supabase
 - Tailwind CSS
 - shadcn/ui
+- Express
 
 ## Como rodar localmente
 
-Instale as dependências:
+Instale as dependencias:
 
 ```sh
 npm install
@@ -30,10 +63,10 @@ npm install
 Crie o arquivo `.env` usando o modelo `.env.example`:
 
 ```sh
-cp .env.example .env
+copy .env.example .env
 ```
 
-Preencha no `.env` as variáveis do Supabase:
+Preencha no `.env` as variaveis do Supabase:
 
 ```env
 VITE_SUPABASE_PROJECT_ID=""
@@ -47,24 +80,40 @@ Inicie o servidor de desenvolvimento:
 npm run dev
 ```
 
-Por padrão, o Vite abre em:
+Por padrao, o Vite abre em:
 
+```txt
 http://localhost:8080
+```
 
-## Build de produção
+## Build de producao
 
-Gere os arquivos de produção:
+Gere os arquivos de producao:
 
 ```sh
 npm run build
 ```
 
-Para servir o build com o servidor Express incluído:
+Para servir o build com o servidor Express incluido:
 
 ```sh
 npm start
 ```
 
-## Observações de implantação
+O servidor Express usa a porta definida em `PORT`. Sem essa variavel, ele usa a porta `3000`.
 
-O deploy temporário está configurado para ambiente Node.js. As variáveis do Supabase devem ser cadastradas no provedor de hospedagem para que autenticação, banco de dados e demais integrações funcionem corretamente.
+## Banco de dados
+
+O projeto usa Supabase para autenticacao, banco de dados e regras de acesso. Para rodar localmente com os mesmos dados do ambiente temporario, use as credenciais do projeto Supabase no arquivo `.env`.
+
+Para criar ou atualizar um usuario de cliente em outro ambiente, configure uma chave de service role apenas na sua maquina ou no provedor de hospedagem e execute:
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role" SEED_CLIENT_EMAIL="brisa.teste.nexus@gmail.com" SEED_CLIENT_PASSWORD="BrisaTeste123" node scripts/seed-client-portal-user.mjs
+```
+
+Nao versionar chaves privadas ou service role no repositorio.
+
+## Deploy
+
+O deploy temporario esta configurado para ambiente Node.js. No provedor de hospedagem, cadastre as variaveis do Supabase para que autenticacao, banco de dados e integracoes funcionem corretamente.
