@@ -10,12 +10,13 @@ Desenvolvedores:
 
 - Mikael da Cruz - mikaelcruz.aluno@unipampa.edu.br
 - Renato M. Couto - renatocouto.aluno@unipampa.edu.br
+- Samuel A. F. Monteiro - samuelmonteiro@unipampa.edu.br
 - Thiago F. Gomes - thiagogomes.aluno@unipampa.edu.br
 - Vinicius N. Lopes - viniciusnunez.aluno@unipampa.edu.br
 
 Orientador:
 
-- Samuel A. F. Monteiro - samuelmonteiro@unipampa.edu.br
+- Dr. Paulo Cesar C. Aguirre - pauloaguirre@unipampa.edu.br
 
 ## Acesso temporario
 
