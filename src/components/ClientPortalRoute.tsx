@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
  */
 export const ClientPortalRoute = ({ children }: { children: React.ReactNode }) => {
   const { userRole, user, loading } = useAuth();
+  const location = useLocation();
+  const isCompanyPreview = new URLSearchParams(location.search).get('preview') === 'empresa';
 
   if (loading) {
     return (
@@ -21,11 +23,11 @@ export const ClientPortalRoute = ({ children }: { children: React.ReactNode }) =
     return <Navigate to="/login" replace />;
   }
 
-  if (userRole === 'admin' || userRole === 'employee') {
+  if ((userRole === 'admin' || userRole === 'employee') && !isCompanyPreview) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (userRole === 'super_admin') {
+  if (userRole === 'super_admin' && !isCompanyPreview) {
     return <Navigate to="/admin" replace />;
   }
 

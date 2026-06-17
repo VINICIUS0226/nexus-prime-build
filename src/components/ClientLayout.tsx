@@ -9,11 +9,15 @@ import { useStoreConfig } from '@/hooks/useStoreConfig';
 
 export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const { config } = useStoreConfig();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const isCompanyPreview =
+    new URLSearchParams(location.search).get('preview') === 'empresa' &&
+    (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin');
+  const previewSearch = isCompanyPreview ? '?preview=empresa' : '';
 
   const sidebarCollapsed = isMobile && !sidebarExpanded;
   const sidebarWidth = isMobile ? (sidebarCollapsed ? 'w-16' : 'w-64') : 'w-64';
@@ -21,10 +25,10 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
 
   const navItems = useMemo(
     () => [
-      { name: 'Produtos', href: '/client/products', icon: ShoppingBag },
-      { name: 'Minhas compras', href: '/client/orders', icon: Package },
+      { name: 'Produtos', href: `/client/products${previewSearch}`, icon: ShoppingBag },
+      { name: 'Minhas compras', href: `/client/orders${previewSearch}`, icon: Package },
     ],
-    [],
+    [previewSearch],
   );
 
   return (
@@ -60,7 +64,9 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
               )}
               {!sidebarCollapsed && (
                 <div className="flex flex-col leading-tight min-w-0">
-                  <span className="font-bold text-sm truncate">Portal do Cliente</span>
+                  <span className="font-bold text-sm truncate">
+                    {isCompanyPreview ? 'Prévia do Cliente' : 'Portal do Cliente'}
+                  </span>
                   <span className="text-[11px] text-muted-foreground truncate">{config.store_name || 'PQueninos'}</span>
                 </div>
               )}
@@ -82,8 +88,8 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
           <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2 space-y-2' : 'p-4 space-y-3'}`}>
             {navItems.map((item) => {
               const isActive =
-                location.pathname === item.href ||
-                location.pathname.startsWith(`${item.href}/`);
+                location.pathname === item.href.split('?')[0] ||
+                location.pathname.startsWith(`${item.href.split('?')[0]}/`);
               const Icon = item.icon;
               return (
                 <Link
@@ -139,6 +145,7 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
           onMenuClick={isMobile ? () => setSidebarExpanded(true) : undefined}
           showMenuButton={!!isMobile}
           onCheckout={() => {
+            if (isCompanyPreview) return;
             navigate('/client/checkout');
           }}
           clearCartOnCheckout={false}

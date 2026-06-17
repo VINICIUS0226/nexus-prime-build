@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
+import { resolveProductImageUrl } from '@/lib/storageImages';
 import { ShoppingCart } from 'lucide-react';
 
 interface ProductVariation {
@@ -76,7 +77,18 @@ const ClientCatalogDetails = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setProducts(data || []);
+
+        const productsData = (data || []) as Product[];
+        setProducts(
+          productsData.map((product) => ({
+            ...product,
+            image_url: resolveProductImageUrl(product.image_url),
+            product_images: (product.product_images || []).map((image) => ({
+              ...image,
+              image_url: resolveProductImageUrl(image.image_url) ?? image.image_url,
+            })),
+          }))
+        );
       } catch (error: any) {
         console.error('Erro ao carregar produtos do catálogo:', error);
         toast({

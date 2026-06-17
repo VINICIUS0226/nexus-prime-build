@@ -26,6 +26,7 @@ export const ProductCardGallery = ({
   children 
 }: ProductCardGalleryProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(new Set());
 
   // Ordenar imagens: principal primeiro, depois por display_order
   const sortedImages = [...images].sort((a, b) => {
@@ -37,7 +38,13 @@ export const ProductCardGallery = ({
   // Se não houver imagens na galeria, usar fallback
   const hasImages = sortedImages.length > 0;
   const currentImage = hasImages ? sortedImages[currentIndex] : null;
-  const imageUrl = currentImage?.image_url || fallbackUrl;
+  const preferredImageUrl = currentImage?.image_url || fallbackUrl;
+  const imageUrl =
+    preferredImageUrl && !failedUrls.has(preferredImageUrl)
+      ? preferredImageUrl
+      : fallbackUrl && fallbackUrl !== preferredImageUrl && !failedUrls.has(fallbackUrl)
+        ? fallbackUrl
+        : null;
   const totalImages = sortedImages.length;
 
   const goToPrevious = (e: React.MouseEvent) => {
@@ -57,6 +64,9 @@ export const ProductCardGallery = ({
           src={imageUrl}
           alt={currentImage?.alt_text || productName}
           className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={() => {
+            setFailedUrls((prev) => new Set(prev).add(imageUrl));
+          }}
         />
       ) : (
         <div className="w-full h-56 bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors">

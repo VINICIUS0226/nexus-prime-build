@@ -51,6 +51,7 @@ const navigationSections = [
   {
     title: 'SISTEMA',
     items: [
+      { name: 'Prévia Cliente', href: '/client/products?preview=empresa', icon: ShoppingCart },
       { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
       { name: 'Ajuda', href: '/dashboard/help', icon: HelpCircle },
     ]

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrentStoreId } from '@/hooks/useCurrentStoreId';
+import { resolveStoreLogoUrl } from '@/lib/storageImages';
 
 export interface StoreConfig {
   store_name: string;
@@ -90,7 +91,9 @@ export function useStoreConfig() {
       });
 
       // Sobrepõe o que for da loja por cima do global.
-      setConfig({ ...defaultConfig, ...globalMap, ...storeMap });
+      const nextConfig = { ...defaultConfig, ...globalMap, ...storeMap };
+      nextConfig.store_logo_url = resolveStoreLogoUrl(nextConfig.store_logo_url) || '';
+      setConfig(nextConfig);
     } catch (error) {
       console.error('Error fetching store config:', error);
     } finally {
@@ -119,7 +122,11 @@ export function useStoreConfig() {
         if (error) throw error;
       }
 
-      setConfig((prev) => ({ ...prev, ...newConfig }));
+      setConfig((prev) => {
+        const nextConfig = { ...prev, ...newConfig };
+        nextConfig.store_logo_url = resolveStoreLogoUrl(nextConfig.store_logo_url) || '';
+        return nextConfig;
+      });
       return { success: true };
     } catch (error) {
       console.error('Error saving store config:', error);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ClientLayout } from '@/components/ClientLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, type CartItem } from '@/contexts/CartContext';
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AddToCartDialog } from '@/components/AddToCartDialog';
+import { resolveProductImageUrl } from '@/lib/storageImages';
 import { ShoppingCart, Star, Package, Truck, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { estimateCorreios, type CorreiosEstimate, type CorreiosService } from '@/lib/shipping/correiosEstimate';
 
@@ -59,9 +60,13 @@ interface Product {
 const ClientProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addItems } = useCart();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
+  const isCompanyPreview =
+    new URLSearchParams(location.search).get('preview') === 'empresa' &&
+    (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin');
 
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -98,34 +103,13 @@ const ClientProductDetails = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [intent, setIntent] = useState<'add' | 'buy'>('add');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
 
   // Estado do formulário de avaliação (comentários/notas)
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewTitle, setReviewTitle] = useState<string>('');
   const [reviewComment, setReviewComment] = useState<string>('');
   const [reviewSubmitting, setReviewSubmitting] = useState<boolean>(false);
-
-  const normalizeImageUrl = (value: string | null | undefined): string | null => {
-    if (!value) return null;
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
-
-    const extractPathFromPublicUrl = (maybePath: string) => {
-      const candidate = maybePath.startsWith('/') ? maybePath : `/${maybePath}`;
-      try {
-        const u = new URL(candidate, 'http://dummy');
-        const parts = u.pathname.split('/').filter(Boolean);
-        const idx = parts.findIndex((p) => p === 'product-images');
-        if (idx >= 0) return parts.slice(idx + 1).join('/');
-        return u.pathname.replace(/^\/+/, '');
-      } catch {
-        return maybePath.replace(/^\/+/, '').replace(/^product-images[\\/]/, '');
-      }
-    };
-
-    const filePath = extractPathFromPublicUrl(value);
-    const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-    return data?.publicUrl || value;
-  };
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -150,10 +134,10 @@ const ClientProductDetails = () => {
         const productData = data as Product;
         const normalizedProduct: Product = {
           ...productData,
-          image_url: normalizeImageUrl(productData.image_url),
+          image_url: resolveProductImageUrl(productData.image_url),
           product_images: (productData.product_images || []).map((img) => ({
             ...img,
-            image_url: normalizeImageUrl(img.image_url) ?? img.image_url,
+            image_url: resolveProductImageUrl(img.image_url) ?? img.image_url,
           })),
         };
 
@@ -596,6 +580,13 @@ const ClientProductDetails = () => {
 
   const primaryImage = product.product_images?.find((img) => img.is_primary) ?? product.product_images?.[0] ?? null;
   const mainImageUrl = primaryImage?.image_url ?? product.image_url ?? null;
+  const selectedImageUrl = sortedImages[selectedImageIndex]?.image_url ?? mainImageUrl;
+  const displayImageUrl =
+    selectedImageUrl && !failedImageUrls.has(selectedImageUrl)
+      ? selectedImageUrl
+      : mainImageUrl && mainImageUrl !== selectedImageUrl && !failedImageUrls.has(mainImageUrl)
+        ? mainImageUrl
+        : null;
 
   return (
     <ClientLayout>
@@ -605,11 +596,20 @@ const ClientProductDetails = () => {
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="relative">
-                  <img
-                    src={sortedImages[selectedImageIndex]?.image_url ?? mainImageUrl ?? undefined}
-                    alt={product.name}
-                    className="w-full h-[420px] object-contain bg-muted"
-                  />
+                  {displayImageUrl ? (
+                    <img
+                      src={displayImageUrl}
+                      alt={product.name}
+                      className="w-full h-[420px] object-contain bg-muted"
+                      onError={() => {
+                        setFailedImageUrls((prev) => new Set(prev).add(displayImageUrl));
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-[420px] bg-muted flex items-center justify-center">
+                      <Package className="h-20 w-20 text-muted-foreground opacity-30" />
+                    </div>
+                  )}
 
                   {sortedImages.length > 1 && (
                     <>
@@ -652,11 +652,20 @@ const ClientProductDetails = () => {
                           }`}
                           aria-label={`Selecionar imagem ${idx + 1}`}
                         >
-                          <img
-                            src={img.image_url || mainImageUrl || undefined}
-                            alt={`${product.name} - ${idx + 1}`}
-                            className="w-20 h-14 object-cover"
-                          />
+                          {img.image_url && !failedImageUrls.has(img.image_url) ? (
+                            <img
+                              src={img.image_url}
+                              alt={`${product.name} - ${idx + 1}`}
+                              className="w-20 h-14 object-cover"
+                              onError={() => {
+                                setFailedImageUrls((prev) => new Set(prev).add(img.image_url));
+                              }}
+                            />
+                          ) : (
+                            <div className="w-20 h-14 bg-muted flex items-center justify-center">
+                              <Package className="h-5 w-5 text-muted-foreground opacity-40" />
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -1038,6 +1047,13 @@ const ClientProductDetails = () => {
               })) as CartItem[]
             );
             if (intent === 'buy') {
+              if (isCompanyPreview) {
+                toast({
+                  title: 'Prévia da empresa',
+                  description: 'A compra não foi enviada porque esta é uma versão de teste.',
+                });
+                return;
+              }
               navigate('/client/checkout', { state: { cep: zip, selectedFreight } });
               return;
             }

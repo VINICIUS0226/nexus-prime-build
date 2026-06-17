@@ -32,6 +32,14 @@ Senha: BrisaTeste123
 Perfil: cliente
 ```
 
+Para a empresa validar o portal com perfil interno, acesse pelo menu lateral em **Previa Cliente** ou abra:
+
+```txt
+http://localhost:8080/client/products?preview=empresa
+```
+
+Nesse modo de teste, a empresa consegue navegar pelo portal do cliente e conferir produtos, imagens e detalhes sem enviar uma compra real.
+
 ## Prints do sistema
 
 ### Tela de login
@@ -50,8 +58,10 @@ Perfil: cliente
 
 - Autenticacao: login, cadastro de cliente, recuperacao de senha e redirecionamento conforme perfil.
 - Portal do cliente: catalogos, listagem de produtos, detalhe do produto, carrinho, checkout e acompanhamento de pedidos.
+- Previa da empresa: acesso de teste ao portal do cliente para usuarios internos, sem finalizacao real de compra.
 - Painel administrativo: indicadores, produtos, clientes, estoque, reservas, vendas, pagamentos, relatorios, configuracoes e ajuda.
 - Produtos e estoque: cadastro de produto, variacoes, SKU, imagens, importacao por XML, codigo de barras e ajustes manuais de estoque.
+- Imagens do portal: URLs de produtos e logos salvas no Supabase Storage sao normalizadas para evitar links quebrados entre ambientes.
 - Clientes: cadastro, consulta, historico, enderecos, consentimento de dados e analise de confiabilidade.
 - Vendas e reservas: criacao de carrinho, reserva de itens, registro de venda, pagamentos, comprovantes e recibos.
 - Gestao superior: lojas, usuarios, catalogos e configuracoes gerais para ambientes com perfil administrativo.

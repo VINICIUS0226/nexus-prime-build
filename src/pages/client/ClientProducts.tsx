@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientLayout } from '@/components/ClientLayout';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveProductImageUrl } from '@/lib/storageImages';
 import { ShoppingCart, ShoppingBag, Package, AlertCircle } from 'lucide-react';
 
 interface ProductVariation {
@@ -63,6 +64,9 @@ const ClientProducts = () => {
   const { addItems } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const previewSearch =
+    new URLSearchParams(location.search).get('preview') === 'empresa' ? '?preview=empresa' : '';
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,30 +82,6 @@ const ClientProducts = () => {
   const [reviewStats, setReviewStats] = useState<
     Record<string, { avg: number; count: number }>
   >({});
-
-  const normalizeImageUrl = (value: string | null | undefined): string | null => {
-    if (!value) return null;
-    // Se já for URL completa, usamos direto.
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
-
-    const extractPathFromPublicUrl = (maybePath: string) => {
-      const candidate = maybePath.startsWith('/') ? maybePath : `/${maybePath}`;
-      try {
-        const u = new URL(candidate, 'http://dummy');
-        const parts = u.pathname.split('/').filter(Boolean);
-        const idx = parts.findIndex((p) => p === 'product-images');
-        if (idx >= 0) return parts.slice(idx + 1).join('/');
-        return u.pathname.replace(/^\/+/, '');
-      } catch {
-        const cleaned = maybePath.replace(/^\/+/, '').replace(/^product-images[\\/]/, '');
-        return cleaned;
-      }
-    };
-
-    const filePath = extractPathFromPublicUrl(value);
-    const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-    return data?.publicUrl || value;
-  };
 
   const [dialog, setDialog] = useState<AddDialogState>({
     open: false,
@@ -160,10 +140,10 @@ const ClientProducts = () => {
 
         const normalizedProducts = productsData.map((p) => ({
           ...p,
-          image_url: normalizeImageUrl(p.image_url),
+          image_url: resolveProductImageUrl(p.image_url),
           product_images: (p.product_images || []).map((img) => ({
             ...img,
-            image_url: normalizeImageUrl(img.image_url) ?? img.image_url,
+            image_url: resolveProductImageUrl(img.image_url) ?? img.image_url,
           })),
         }));
 
@@ -484,7 +464,7 @@ const ClientProducts = () => {
                         images={product.product_images || []}
                         fallbackUrl={product.image_url}
                         productName={product.name}
-                        onClick={() => navigate(`/client/products/${product.id}`)}
+                        onClick={() => navigate(`/client/products/${product.id}${previewSearch}`)}
                       >
                         {product.category && (
                           <Badge variant="secondary" className="absolute bottom-2 left-2">
