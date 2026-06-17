@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { isCompanyTestEmail } from '@/lib/testAccounts';
 
 interface AuthContextType {
   user: User | null;
@@ -23,12 +24,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   const initializedRef = useRef(false);
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRole = async (currentUser: User) => {
     try {
+      if (isCompanyTestEmail(currentUser.email)) {
+        setUserRole('admin');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId);
+        .eq('user_id', currentUser.id);
 
       if (error) throw error;
 
@@ -44,6 +50,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       else setUserRole(null);
     } catch (error) {
       console.error('Error fetching user role:', error);
+      setUserRole(isCompanyTestEmail(currentUser.email) ? 'admin' : null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,13 +75,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           setUserRole(null);
         } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          setLoading(true);
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           if (currentSession?.user) {
             // Defer to avoid Supabase client deadlocks
             setTimeout(() => {
-              if (mounted) fetchUserRole(currentSession.user.id);
+              if (mounted) fetchUserRole(currentSession.user);
             }, 0);
+          } else {
+            setLoading(false);
           }
         }
       }
@@ -80,22 +92,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // 2. Then explicitly fetch session for initial load
     const initializeAuth = async () => {
+      let hasCurrentUser = false;
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (!mounted) return;
 
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        hasCurrentUser = !!currentSession?.user;
 
         if (currentSession?.user) {
-          await fetchUserRole(currentSession.user.id);
+          await fetchUserRole(currentSession.user);
         }
       } catch (error) {
         console.error('Error getting session:', error);
+        if (mounted) setLoading(false);
       } finally {
         if (mounted) {
           initializedRef.current = true;
-          setLoading(false);
+          if (!hasCurrentUser) {
+            setLoading(false);
+          }
         }
       }
     };
