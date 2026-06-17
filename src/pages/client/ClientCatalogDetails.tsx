@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
+import { supabasePublic } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
@@ -63,7 +63,7 @@ const ClientCatalogDetails = () => {
       try {
         // Busca simples de produtos com variações/imagens;
         // assume que a filtragem específica do catálogo será feita por campos no futuro (filters JSON).
-        const { data, error } = await supabase
+        const { data, error } = await supabasePublic
           .from('products')
           .select(`
             *,

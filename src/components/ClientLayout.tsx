@@ -9,14 +9,12 @@ import { useStoreConfig } from '@/hooks/useStoreConfig';
 
 export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
-  const { user, userRole, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { config } = useStoreConfig();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-  const isCompanyPreview =
-    new URLSearchParams(location.search).get('preview') === 'empresa' &&
-    (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin');
+  const isCompanyPreview = new URLSearchParams(location.search).get('preview') === 'empresa';
   const previewSearch = isCompanyPreview ? '?preview=empresa' : '';
 
   const sidebarCollapsed = isMobile && !sidebarExpanded;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientLayout } from '@/components/ClientLayout';
 import { ProductCardGallery } from '@/components/ProductCardGallery';
-import { supabase } from '@/integrations/supabase/client';
+import { supabasePublic } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -121,7 +121,7 @@ const ClientProducts = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabasePublic
           .from('products')
           .select(`
             *,
@@ -151,7 +151,7 @@ const ClientProducts = () => {
 
         const productIds = normalizedProducts.map((p) => p.id);
         if (productIds.length > 0) {
-          const { data: reviewRows, error: reviewErr } = await supabase
+          const { data: reviewRows, error: reviewErr } = await supabasePublic
             .from('product_reviews')
             .select('product_id, rating')
             .in('product_id', productIds);

@@ -32,13 +32,15 @@ Senha: BrisaTeste123
 Perfil: cliente
 ```
 
-Para a empresa validar o portal com perfil interno, acesse pelo menu lateral em **Previa Cliente** ou abra:
+Com o mesmo usuario de teste, tambem e possivel validar a versao de teste da empresa para o portal do cliente:
 
 ```txt
-http://localhost:8080/client/products?preview=empresa
+Perfil: empresa / previa do portal
+URL local: http://localhost:8080/client/products?preview=empresa
+URL temporaria: https://nexus-prime-build.onrender.com/client/products?preview=empresa
 ```
 
-Nesse modo de teste, a empresa consegue navegar pelo portal do cliente e conferir produtos, imagens e detalhes sem enviar uma compra real.
+Nesse modo, a empresa consegue navegar pelo portal do cliente e conferir produtos, imagens e detalhes sem enviar uma compra real. Usuarios internos tambem podem acessar pelo menu lateral em **Previa Cliente**.
 
 ## Prints do sistema
 

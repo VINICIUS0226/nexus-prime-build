@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ClientLayout } from '@/components/ClientLayout';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, supabasePublic } from '@/integrations/supabase/client';
 import { useCart, type CartItem } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,10 +63,8 @@ const ClientProductDetails = () => {
   const location = useLocation();
   const { addItems } = useCart();
   const { toast } = useToast();
-  const { user, userRole } = useAuth();
-  const isCompanyPreview =
-    new URLSearchParams(location.search).get('preview') === 'empresa' &&
-    (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin');
+  const { user } = useAuth();
+  const isCompanyPreview = new URLSearchParams(location.search).get('preview') === 'empresa';
 
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -115,7 +113,7 @@ const ClientProductDetails = () => {
     const fetchDetails = async () => {
       if (!id) return;
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabasePublic
           .from('products')
           .select(`
             *,
@@ -143,7 +141,7 @@ const ClientProductDetails = () => {
 
         setProduct(normalizedProduct);
 
-        const { data: reviewsData, error: reviewsErr } = await supabase
+        const { data: reviewsData, error: reviewsErr } = await supabasePublic
           .from('product_reviews')
           .select('id, rating, title, comment, is_verified_purchase, created_at')
           .eq('product_id', id)
@@ -167,7 +165,7 @@ const ClientProductDetails = () => {
   const reloadReviews = async () => {
     if (!id) return;
     try {
-      const { data: reviewsData, error: reviewsErr } = await supabase
+      const { data: reviewsData, error: reviewsErr } = await supabasePublic
         .from('product_reviews')
         .select('id, rating, title, comment, is_verified_purchase, created_at')
         .eq('product_id', id)
