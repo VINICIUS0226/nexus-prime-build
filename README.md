@@ -32,15 +32,15 @@ Senha: BrisaTeste123
 Perfil: cliente
 ```
 
-Com o mesmo usuario de teste, tambem e possivel validar a versao de teste da empresa para o portal do cliente:
+Usuario de teste da empresa:
 
 ```txt
-Perfil: empresa / previa do portal
-URL local: http://localhost:8080/client/products?preview=empresa
-URL temporaria: https://nexus-prime-build.onrender.com/client/products?preview=empresa
+Email: empresa.teste.nexus@gmail.com
+Senha: EmpresaTeste123
+Perfil: administrador da empresa
 ```
 
-Nesse modo, a empresa consegue navegar pelo portal do cliente e conferir produtos, imagens e detalhes sem enviar uma compra real. Usuarios internos tambem podem acessar pelo menu lateral em **Previa Cliente**.
+Ao entrar com o usuario da empresa, o sistema redireciona para o painel administrativo. Pelo menu lateral em **Previa Cliente**, o administrador consegue validar o portal do cliente sem finalizar compra real.
 
 ## Prints do sistema
 

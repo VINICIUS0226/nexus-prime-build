@@ -63,8 +63,10 @@ const ClientProductDetails = () => {
   const location = useLocation();
   const { addItems } = useCart();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const isCompanyPreview = new URLSearchParams(location.search).get('preview') === 'empresa';
+  const { user, userRole } = useAuth();
+  const isCompanyPreview =
+    new URLSearchParams(location.search).get('preview') === 'empresa' &&
+    (userRole === 'admin' || userRole === 'employee');
 
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);

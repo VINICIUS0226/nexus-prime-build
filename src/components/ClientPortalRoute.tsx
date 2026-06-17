@@ -10,6 +10,7 @@ export const ClientPortalRoute = ({ children }: { children: React.ReactNode }) =
   const { userRole, user, loading } = useAuth();
   const location = useLocation();
   const isCompanyPreview = new URLSearchParams(location.search).get('preview') === 'empresa';
+  const canUseCompanyPreview = userRole === 'admin' || userRole === 'employee';
 
   if (loading) {
     return (
@@ -27,7 +28,11 @@ export const ClientPortalRoute = ({ children }: { children: React.ReactNode }) =
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (userRole === 'super_admin' && !isCompanyPreview) {
+  if ((userRole === 'admin' || userRole === 'employee') && isCompanyPreview && canUseCompanyPreview) {
+    return <>{children}</>;
+  }
+
+  if (userRole === 'super_admin') {
     return <Navigate to="/admin" replace />;
   }
 
