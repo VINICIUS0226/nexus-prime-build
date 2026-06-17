@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentStoreId } from '@/hooks/useCurrentStoreId';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -65,30 +67,60 @@ function applyTheme(mode: ThemeMode, primaryColor: string) {
 }
 
 export function useTheme() {
+  const { userRole, loading: authLoading } = useAuth();
+  const { storeId, loading: storeIdLoading } = useCurrentStoreId();
   const [theme, setTheme] = useState<ThemeConfig>(defaultTheme);
   const [loading, setLoading] = useState(true);
 
   const fetchTheme = useCallback(async () => {
+    if (authLoading || storeIdLoading) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('system_config')
-        .select('config_key, config_value')
-        .in('config_key', ['theme_mode', 'primary_color']);
+      const keys: Array<keyof ThemeConfig> = ['theme_mode', 'primary_color'];
 
-      if (error) throw error;
+      const includeGlobalFallback = userRole !== null;
 
-      const configMap: Partial<ThemeConfig> = {};
-      data?.forEach((row) => {
+      const [storeRes, globalRes] = await Promise.all([
+        storeId
+          ? supabase
+              .from('system_config')
+              .select('config_key, config_value')
+              .eq('store_id', storeId)
+              .in('config_key', keys as any)
+          : Promise.resolve({ data: [], error: null as any }),
+        includeGlobalFallback
+          ? supabase
+              .from('system_config')
+              .select('config_key, config_value')
+              .is('store_id', null)
+              .in('config_key', keys as any)
+          : Promise.resolve({ data: [], error: null as any }),
+      ]);
+
+      if (storeRes.error) throw storeRes.error;
+      if (globalRes.error) throw globalRes.error;
+
+      const storeMap: Partial<ThemeConfig> = {};
+      (storeRes.data || []).forEach((row: any) => {
         if (row.config_key === 'theme_mode') {
-          configMap.theme_mode = (row.config_value as ThemeMode) || 'light';
+          storeMap.theme_mode = (row.config_value as ThemeMode) || 'light';
         }
         if (row.config_key === 'primary_color') {
-          configMap.primary_color = row.config_value || defaultTheme.primary_color;
+          storeMap.primary_color = row.config_value || defaultTheme.primary_color;
         }
       });
 
-      const newTheme = { ...defaultTheme, ...configMap };
+      const globalMap: Partial<ThemeConfig> = {};
+      (globalRes.data || []).forEach((row: any) => {
+        if (row.config_key === 'theme_mode') {
+          globalMap.theme_mode = (row.config_value as ThemeMode) || 'light';
+        }
+        if (row.config_key === 'primary_color') {
+          globalMap.primary_color = row.config_value || defaultTheme.primary_color;
+        }
+      });
+
+      const newTheme = { ...defaultTheme, ...globalMap, ...storeMap };
       setTheme(newTheme);
       applyTheme(newTheme.theme_mode, newTheme.primary_color);
     } catch (error) {
@@ -97,11 +129,16 @@ export function useTheme() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading, storeIdLoading, storeId, userRole]);
 
   const saveTheme = async (newTheme: Partial<ThemeConfig>) => {
+    if (!storeId) {
+      return { success: false, error: new Error('store_id não encontrado para o usuário atual') };
+    }
+
     try {
       const updates = Object.entries(newTheme).map(([key, value]) => ({
+        store_id: storeId,
         config_key: key,
         config_value: value || null,
       }));
@@ -109,7 +146,7 @@ export function useTheme() {
       for (const update of updates) {
         const { error } = await supabase
           .from('system_config')
-          .upsert(update, { onConflict: 'config_key' });
+          .upsert(update, { onConflict: 'store_id,config_key' });
 
         if (error) throw error;
       }

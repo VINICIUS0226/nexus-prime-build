@@ -12,8 +12,8 @@ import { z } from 'zod';
 import loginIllustration from '@/assets/login-illustration.png';
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  email: z.string().email('Email invalido'),
+  password: z.string().min(6, 'Senha deve ter no minimo 6 caracteres'),
 });
 
 const Login = () => {
@@ -26,8 +26,8 @@ const Login = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Só redireciona depois que o usuário estiver definido
-    // e o papel (userRole) já tiver sido carregado do backend.
+    // So redireciona depois que o usuario estiver definido
+    // e o papel (userRole) ja tiver sido carregado do backend.
     if (authLoading) {
       return;
     }
@@ -36,7 +36,9 @@ const Login = () => {
       return;
     }
 
-    if (userRole === 'admin' || userRole === 'employee' || userRole === 'super_admin') {
+    if (userRole === 'super_admin') {
+      navigate('/admin');
+    } else if (userRole === 'admin' || userRole === 'employee') {
       navigate('/dashboard');
     } else {
       // Client users go to the catalog/shopping flow
@@ -63,13 +65,13 @@ const Login = () => {
         description: "Bem-vindo de volta!",
       });
 
-      // Não faz redirecionamento direto aqui.
+      // Nao faz redirecionamento direto aqui.
       // O AuthContext vai atualizar user e userRole,
       // e o useEffect acima decide a rota correta (dashboard x cliente)
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
-          title: "Erro de validação",
+          title: "Erro de validacao",
           description: error.errors[0].message,
           variant: "destructive",
         });
@@ -91,7 +93,7 @@ const Login = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-[#E8DDD3] items-center justify-center p-12  overflow-hidden">
         <img 
           src={loginIllustration} 
-          alt="PQueninos Ilustração" 
+          alt="PQueninos Ilustracao" 
           className="max-w-full h-auto object-contain rounded-xl"
         />
       </div>
@@ -166,7 +168,7 @@ const Login = () => {
           </form>
 
           <div className="text-center text-sm text-muted-foreground">
-            Não possui acesso?{' '}
+            Nao possui acesso?{' '}
             <Link to="/signup" className="text-[#7B2869] hover:underline font-semibold">
               Criar sua conta
             </Link>

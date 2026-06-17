@@ -81,7 +81,9 @@ export const ClientLayout = ({ children }: { children: React.ReactNode }) => {
 
           <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'p-2 space-y-2' : 'p-4 space-y-3'}`}>
             {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive =
+                location.pathname === item.href ||
+                location.pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (
                 <Link

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentStoreId } from '@/hooks/useCurrentStoreId';
 
 export interface StoreConfig {
   store_name: string;
@@ -33,42 +34,79 @@ const defaultConfig: StoreConfig = {
 };
 
 export function useStoreConfig() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
+  const { storeId, loading: storeIdLoading } = useCurrentStoreId();
   const [config, setConfig] = useState<StoreConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const fetchConfig = useCallback(async () => {
-    if (authLoading) return;
+    if (authLoading || storeIdLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('system_config')
-        .select('config_key, config_value')
-        .in('config_key', Object.keys(defaultConfig));
+      const keys = Object.keys(defaultConfig);
 
-      if (error) throw error;
+      // 1) Global fallback (apenas para admin/employee/super_admin).
+      // Para cliente, evitamos vazar branding/config de outra loja.
+      const includeGlobalFallback = userRole !== null;
 
-      const configMap: Partial<StoreConfig> = {};
-      data?.forEach((row) => {
+      const [storeRes, globalRes] = await Promise.all([
+        storeId
+          ? supabase
+              .from('system_config')
+              .select('config_key, config_value')
+              .eq('store_id', storeId)
+              .in('config_key', keys)
+          : Promise.resolve({ data: [], error: null as any }),
+        includeGlobalFallback
+          ? supabase
+              .from('system_config')
+              .select('config_key, config_value')
+              .is('store_id', null)
+              .in('config_key', keys)
+          : Promise.resolve({ data: [], error: null as any }),
+      ]);
+
+      if (storeRes.error) throw storeRes.error;
+      if (globalRes.error) throw globalRes.error;
+
+      const storeMap: Partial<StoreConfig> = {};
+      (storeRes.data || []).forEach((row: any) => {
         if (row.config_key in defaultConfig) {
-          configMap[row.config_key as keyof StoreConfig] = row.config_value || '';
+          storeMap[row.config_key as keyof StoreConfig] = row.config_value || '';
         }
       });
 
-      setConfig({ ...defaultConfig, ...configMap });
+      const globalMap: Partial<StoreConfig> = {};
+      (globalRes.data || []).forEach((row: any) => {
+        if (row.config_key in defaultConfig) {
+          globalMap[row.config_key as keyof StoreConfig] = row.config_value || '';
+        }
+      });
+
+      // Sobrepõe o que for da loja por cima do global.
+      setConfig({ ...defaultConfig, ...globalMap, ...storeMap });
     } catch (error) {
       console.error('Error fetching store config:', error);
     } finally {
       setLoading(false);
     }
-  }, [authLoading]);
+  }, [authLoading, storeIdLoading, storeId, user, userRole]);
 
   const saveConfig = async (newConfig: Partial<StoreConfig>) => {
+    if (!storeId) {
+      return { success: false, error: new Error('store_id não encontrado para o usuário atual') };
+    }
+
     setSaving(true);
     try {
       const updates = Object.entries(newConfig).map(([key, value]) => ({
+        store_id: storeId,
         config_key: key,
         config_value: value ?? null,
       }));
@@ -76,7 +114,7 @@ export function useStoreConfig() {
       for (const update of updates) {
         const { error } = await supabase
           .from('system_config')
-          .upsert(update, { onConflict: 'config_key' });
+          .upsert(update, { onConflict: 'store_id,config_key' });
 
         if (error) throw error;
       }
@@ -92,12 +130,12 @@ export function useStoreConfig() {
   };
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && !storeIdLoading && user) {
       fetchConfig();
-    } else if (!authLoading && !user) {
+    } else if (!authLoading && !storeIdLoading && !user) {
       setLoading(false);
     }
-  }, [authLoading, user, fetchConfig]);
+  }, [authLoading, storeIdLoading, user, fetchConfig]);
 
   const isLoading = authLoading || loading;
 

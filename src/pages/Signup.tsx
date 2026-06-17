@@ -12,13 +12,13 @@ import { z } from 'zod';
 import logo from '@/assets/logo.png';
 
 const signupSchema = z.object({
-  fullName: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-  email: z.string().email('Email inválido'),
+  fullName: z.string().min(3, 'Nome deve ter no minimo 3 caracteres'),
+  email: z.string().email('Email invalido'),
   phone: z.string().optional(),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  password: z.string().min(6, 'Senha deve ter no minimo 6 caracteres'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Senhas não conferem",
+  message: "Senhas nao conferem",
   path: ["confirmPassword"],
 });
 
@@ -81,13 +81,13 @@ const Signup = () => {
 
       toast({
         title: "Cadastro realizado!",
-        description: "Você já pode fazer login no sistema.",
+        description: "Voce ja pode fazer login no sistema.",
       });
       navigate('/login');
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
-          title: "Erro de validação",
+          title: "Erro de validacao",
           description: error.errors[0].message,
           variant: "destructive",
         });
@@ -157,7 +157,7 @@ const Signup = () => {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="********"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -169,7 +169,7 @@ const Signup = () => {
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="••••••••"
+                placeholder="********"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -192,9 +192,9 @@ const Signup = () => {
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Já tem uma conta?{' '}
+            Ja tem uma conta?{' '}
             <Link to="/login" className="text-primary hover:underline font-semibold">
-              Faça login
+              Faca login
             </Link>
           </div>
         </CardContent>

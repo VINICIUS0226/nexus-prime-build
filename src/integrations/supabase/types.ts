@@ -673,6 +673,7 @@ export type Database = {
       }
       system_config: {
         Row: {
+          store_id: string | null
           config_key: string
           config_value: string | null
           created_at: string
@@ -680,6 +681,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          store_id?: string | null
           config_key: string
           config_value?: string | null
           created_at?: string
@@ -687,6 +689,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          store_id?: string | null
           config_key?: string
           config_value?: string | null
           created_at?: string
