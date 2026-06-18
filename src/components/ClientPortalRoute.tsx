@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { isCompanyTestEmail } from '@/lib/testAccounts';
 
 /**
  * Protege o portal do cliente para impedir que usuários com roles internas
@@ -22,6 +23,14 @@ export const ClientPortalRoute = ({ children }: { children: React.ReactNode }) =
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (isCompanyTestEmail(user.email) && !isCompanyPreview) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (isCompanyTestEmail(user.email) && isCompanyPreview) {
+    return <>{children}</>;
   }
 
   if ((userRole === 'admin' || userRole === 'employee') && !isCompanyPreview) {

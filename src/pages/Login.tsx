@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import loginIllustration from '@/assets/login-illustration.png';
+import { isCompanyTestEmail } from '@/lib/testAccounts';
 
 const loginSchema = z.object({
   email: z.string().email('Email invalido'),
@@ -36,7 +37,9 @@ const Login = () => {
       return;
     }
 
-    if (userRole === 'super_admin') {
+    if (isCompanyTestEmail(user.email)) {
+      navigate('/dashboard');
+    } else if (userRole === 'super_admin') {
       navigate('/admin');
     } else if (userRole === 'admin' || userRole === 'employee') {
       navigate('/dashboard');
