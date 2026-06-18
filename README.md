@@ -139,6 +139,12 @@ Para criar ou atualizar um usuario de cliente em outro ambiente, configure uma c
 SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role" SEED_CLIENT_EMAIL="brisa.teste.nexus@gmail.com" SEED_CLIENT_PASSWORD="BrisaTeste123" node scripts/seed-client-portal-user.mjs
 ```
 
+Para criar ou atualizar o usuario administrador da empresa de teste:
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role" SEED_COMPANY_EMAIL="empresa.teste.nexus@gmail.com" SEED_COMPANY_PASSWORD="EmpresaTeste123" node scripts/seed-company-admin-user.mjs
+```
+
 Nao versionar chaves privadas ou service role no repositorio.
 
 ## Deploy

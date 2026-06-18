@@ -68,6 +68,11 @@ const Login = () => {
         description: "Bem-vindo de volta!",
       });
 
+      if (isCompanyTestEmail(validatedData.email)) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
       // Nao faz redirecionamento direto aqui.
       // O AuthContext vai atualizar user e userRole,
       // e o useEffect acima decide a rota correta (dashboard x cliente)
