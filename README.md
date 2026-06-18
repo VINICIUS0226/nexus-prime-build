@@ -32,17 +32,6 @@ Senha: BrisaTeste123
 Perfil: cliente
 ```
 
-Usuario de teste da empresa:
-
-```txt
-Email: empresa.teste.nexus@gmail.com
-Senha: EmpresaTeste123
-Perfil: administrador da empresa
-Empresa: Empresa Teste Nexus
-```
-
-Esse usuario tem o mesmo tipo de permissao de administrador de loja usado pela Fernanda, mas vinculado a uma empresa diferente. Ao entrar com o usuario da empresa, o sistema redireciona para o painel administrativo. Pelo menu lateral em **Previa Cliente**, o administrador consegue validar o portal do cliente sem finalizar compra real.
-
 ## Prints do sistema
 
 ### Tela de login
